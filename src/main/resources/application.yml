@@ -1,0 +1,28 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: selenium-demo
+  thymeleaf:
+    cache: false
+
+app:
+  jwt:
+    # In production load this from an env var / secret manager, NOT the yml.
+    secret: "change-me-to-a-long-random-256-bit-secret-value-please-1234567890"
+    expiration-ms: 3600000 # 1 hour
+  selenium:
+    # "local"  -> opens a real Chrome window on this machine (NO Docker needed)
+    # "remote" -> uses Selenoid/Grid + VNC live view
+    mode: "local"
+    remote-url: "http://localhost:4444/wd/hub"     # only used in remote mode
+    selenoid-ui-base: "http://localhost:8888"      # only used in remote mode
+    enable-vnc: false
+  session:
+    idle-timeout-seconds: 300 # quit browsers idle > 5 min
+    cleanup-interval-ms: 60000 # sweep every minute
+
+logging:
+  level:
+    com.example.seleniumdemo: DEBUG

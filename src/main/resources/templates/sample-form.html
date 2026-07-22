@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Sample Registration Form</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background:#f1f5f9; color:#0f172a; display:flex; justify-content:center; padding:2rem; }
+    .card { background:#fff; padding:2rem; border-radius:12px; width:420px; box-shadow:0 8px 24px rgba(0,0,0,.08); }
+    h1 { font-size:1.3rem; margin:0 0 1rem; }
+    label { display:block; font-size:.85rem; font-weight:600; margin:.7rem 0 .2rem; }
+    input, select, textarea { width:100%; padding:.55rem; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box; font-size:.95rem; }
+    textarea { min-height:80px; resize:vertical; }
+    button { margin-top:1rem; width:100%; padding:.65rem; border:0; border-radius:5px; background:#16a34a; color:#fff; font-weight:600; font-size:1rem; cursor:pointer; }
+    .banner { background:#dcfce7; color:#166534; padding:.6rem; border-radius:6px; margin-bottom:1rem; font-size:.9rem; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Sample Registration Form</h1>
+  <div class="banner" th:if="${submitted}">Form submitted successfully!</div>
+  <!-- This local form's element locators intentionally match mapping.csv -->
+  <form action="/sample-form" method="post">
+    <!-- csvColumn=firstName, locatorType=id, locatorValue=first-name -->
+    <label for="first-name">First name</label>
+    <input id="first-name" name="firstName" type="text"/>

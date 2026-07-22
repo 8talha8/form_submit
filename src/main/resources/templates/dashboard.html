@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Automation Dashboard</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background:#0f172a; color:#e2e8f0; margin:0; }
+    header { background:#1e293b; padding:1rem 1.5rem; display:flex; justify-content:space-between; align-items:center; }
+    header h1 { font-size:1.1rem; margin:0; }
+    .wrap { display:flex; gap:1rem; padding:1rem 1.5rem; }
+    .panel { background:#1e293b; border-radius:10px; padding:1rem; }
+    .controls { width:320px; }
+    .viewer { flex:1; }
+    label { display:block; font-size:.8rem; margin-top:.6rem; color:#94a3b8; }
+    input { width:100%; padding:.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; box-sizing:border-box; }
+    button { padding:.55rem .9rem; border:0; border-radius:6px; font-weight:600; cursor:pointer; margin-top:.6rem; }
+    .primary { background:#3b82f6; color:#fff; }
+    .success { background:#22c55e; color:#08260f; }
+    .danger { background:#ef4444; color:#fff; }
+    iframe { width:100%; height:600px; border:1px solid #334155; border-radius:8px; background:#000; }
+    .status { font-size:.85rem; margin-top:.6rem; color:#facc15; }
+    .row { display:flex; gap:.5rem; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Human-in-the-loop Automation</h1>
+  <button class="danger" onclick="logout()">Logout</button>
+</header>
+<div class="wrap">
+  <div class="panel controls">
+    <label>Target form URL</label>
+    <input id="targetUrl" value="http://localhost:8080/sample-form"/>
+    <label>Data row (0-based)</label>
+    <input id="dataRow" type="number" value="0" min="0"/>
+    <button class="primary" onclick="startFlow()">Start &amp; Fill</button>
+    <div class="status" id="status">Idle</div>
+    <hr style="border-color:#334155; margin:1rem 0;"/>
+    <label>Submit locator type</label>
+    <input id="submitType" value="css"/>
+    <label>Submit locator value</label>
+    <input id="submitValue" value="button[type=submit]"/>
+    <div class="row">
+      <button class="success" onclick="submitFlow()">Verify &amp; Submit</button>
+      <button class="danger" onclick="cancelFlow()">X Cancel</button>
+    </div>
+  </div>
+  <div class="panel viewer">
+    <strong>Live browser:</strong> verify the filled form, then click Submit.
+    <div id="localMsg" style="display:none; padding:1rem; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#facc15;">
+      Running in <b>local mode</b>: a real Chrome window opened on the server machine.
+      Verify the filled form there (or here), then click <b>Verify &amp; Submit</b>.
+    </div>
+    <iframe id="vnc" src="about:blank"></iframe>
+  </div>
+</div>

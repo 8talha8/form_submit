@@ -1,0 +1,7 @@
+csvColumn,locatorType,locatorValue
+firstName,id,first-name
+lastName,id,last-name
+email,name,email
+phone,css,input.phone-field
+country,xpath,//select[@id='country']
+comments,class,comment-box

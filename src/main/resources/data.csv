@@ -1,0 +1,4 @@
+firstName,lastName,email,phone,country,comments
+Ada,Lovelace,ada@example.com,555-0100,UK,First programmer
+Alan,Turing,alan@example.com,555-0101,UK,Enigma solver
+Grace,Hopper,grace@example.com,555-0102,USA,Compiler pioneer

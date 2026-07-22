@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Automation Console</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background:#0f172a; color:#e2e8f0; display:flex; height:100vh; align-items:center; justify-content:center; margin:0; }
+    .card { background:#1e293b; padding:2rem; border-radius:12px; width:320px; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+    h1 { font-size:1.25rem; margin:0 0 1rem; }
+    input { width:100%; padding:.6rem; margin:.4rem 0; border-radius:5px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; box-sizing:border-box; }
+    button { width:100%; padding:.6rem; margin-top:.6rem; border:0; border-radius:5px; background:#3b82f6; color:#fff; font-weight:600; cursor:pointer; }
+    .err { color:#f87171; font-size:.85rem; min-height:1.2rem; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Automation Console</h1>
+  <input id="username" placeholder="Username" value="operator"/>
+  <input id="password" type="password" placeholder="Password" value="password"/>
+  <button onclick="login()">Sign in</button>
+  <div class="err" id="err"></div>
+</div>
+<script>
+  async function login() {
+    document.getElementById('err').textContent = "";
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value
+      })
+    });
+    if (!res.ok) {
+      document.getElementById('err').textContent = "Invalid credentials";
+      return;
+    }
+    const data = await res.json();
+    localStorage.setItem('jwt', data.token);
+    window.location.href = "/dashboard";
+  }
+</script>
+</body>
+</html>
