@@ -1,0 +1,1997 @@
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..caafa81
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,30 @@
++# Gradle
++.gradle/
++build/
++gradle/wrapper/gradle-wrapper.jar
++
++# IDE
++.idea/
++.ij_ipr
++*.iws
++.vscode/
++.settings/
++.project
++.classpath
++.factorypath
++
++# OS
++.DS_Store
++Thumbs.db
++
++# Logs
++*.log
++
++# Build output
++out/
++bin/
++
++# Selenoid video/logs (runtime artifacts)
++selenoid/video/
++selenoid/logs/
+diff --git a/build.gradle.kts b/build.gradle.kts
+new file mode 100644
+index 0000000..1eeff66
+--- /dev/null
++++ b/build.gradle.kts
+@@ -0,0 +1,770 @@
++// GRADLE PLUGINS
++plugins {
++    java
++    id("org.springframework.boot") version "3.3.2"
++    id("io.spring.dependency-management") version "1.1.7"
++}
++
++// PROJECT LANGUAGE
++java.sourceCompatibility = JavaVersion.VERSION_17
++java.targetCompatibility = JavaVersion.VERSION_17
++
++// DEPENDENCY MANAGEMENT
++dependencyManagement {
++    imports {
++        mavenBom("org.springframework.boot:spring-boot-dependencies:${property("springBootVersion")}")
++    }
++}
++
++// PROJECT DEPENDENCIES
++dependencies {
++    //////////////////////////////////
++    // Production code dependencies //
++    //////////////////////////////////
++    // Web + Thymeleaf UI
++    implementation("org.springframework.boot:spring-boot-starter-web")
++    implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
++    // Security (JWT is built on top of this)
++    implementation("org.springframework.boot:spring-boot-starter-security")
++    // Caching abstraction (used for the session registry/mapping cache)
++    implementation("org.springframework.boot:spring-boot-starter-cache")
++    // Validation for request DTOs
++    implementation("org.springframework.boot:spring-boot-starter-validation")
++    // Selenium (RemoteWebDriver talks to Selenoid, or local ChromeDriver)
++    implementation("org.seleniumhq.selenium:selenium-java:${property("seleniumVersion")}")
++    // CSV parsing for mapping.csv / data.csv
++    implementation("org.apache.commons:commons-csv:${property("commonsCsvVersion")}")
++    // JWT (JJWT)
++    implementation("io.jsonwebtoken:jjwt-api:${property("jjwtVersion")}")
++    runtimeOnly("io.jsonwebtoken:jjwt-impl:${property("jjwtVersion")}")
++    runtimeOnly("io.jsonwebtoken:jjwt-jackson:${property("jjwtVersion")}")
++
++    ////////////////////////////
++    // Test code dependencies //
++    ////////////////////////////
++    testImplementation("org.springframework.boot:spring-boot-starter-test")
++    testImplementation("org.springframework.security:spring-security-test")
++    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
++}
++
++// TEST CONFIGURATION
++tasks.withType<Test>().configureEach {
++    useJUnitPlatform()
++}
+diff --git a/docker-compose.yml b/docker-compose.yml
+new file mode 100644
+index 0000000..3d312f6
+--- /dev/null
++++ b/docker-compose.yml
+@@ -0,0 +1,200 @@
++version: "3"
++services:
++  selenoid:
++    image: aerokube/selenoid:latest-release
++    network_mode: bridge
++    ports:
++      - "4444:4444"
++    volumes:
++      - "./selenoid/config:/etc/selenoid"
++      - "/var/run/docker.sock:/var/run/docker.sock"
++    command: ["-conf", "/etc/selenoid/browsers.json", "-limit", "5"]
++  selenoid-ui:
++    image: aerokube/selenoid-ui:latest-release
++    network_mode: bridge
++    ports:
++      - "8888:8888"
++    links:
++      - selenoid
++    command: ["--selenoid-uri", "http://selenoid:4444"]
+diff --git a/gradle.properties b/gradle.properties
+new file mode 100644
+index 0000000..9137436
+--- /dev/null
++++ b/gradle.properties
+@@ -0,0 +1,15 @@
++# Gradle settings
++org.gradle.jvmargs=-Xms512m -Xmx1024m
++org.gradle.daemon=false
++org.gradle.logging.level=info
++
++# Plugin versions:
++pluginVersionMsdeBundle=1.135.0
++springBootPluginVersion=3.3.2
++dependencyManagementPluginVersion=1.1.7
++
++# Dependency versions:
++springBootVersion=3.3.2
++seleniumVersion=4.23.0
++jjwtVersion=0.12.6
++commonsCsvVersion=1.11.0
+diff --git a/gradle/wrapper/gradle-wrapper.properties b/gradle/wrapper/gradle-wrapper.properties
+new file mode 100644
+index 0000000..bdbec24
+--- /dev/null
++++ b/gradle/wrapper/gradle-wrapper.properties
+@@ -0,0 +1,5 @@
++distributionBase=GRADLE_USER_HOME
++distributionPath=wrapper/dists
++distributionUrl=https\://msdeartprod.ms.com/artifactory/generic-3rdparty-local/gradle/distributions/gradle-8.8-all.zip
++zipStoreBase=GRADLE_USER_HOME
++zipStorePath=wrapper/dists
+diff --git a/gradlew b/gradlew
+new file mode 100644
+index 0000000..8efdde6
+--- /dev/null
++++ b/gradlew
+@@ -0,0 +1,185 @@
++#!/usr/bin/env sh
++#
++# Copyright 2015 the original author or authors.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#      https://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++##
++## Gradle start up script for UN*X
++##
++
++# Attempt to set APP_HOME
++# Resolve links: $0 may be a link
++PRG="$0"
++# Need this for relative symlinks.
++while [ -h "$PRG" ]; do
++    ls=`ls -ld "$PRG"`
++    link=`expr "$ls" : '.*-> \(.*\)$'`
++    if expr "$link" : '/.*' > /dev/null; then
++        PRG="$link"
++    else
++        PRG=`dirname "$PRG"`/"$link"
++    fi
++done
++SAVED="`pwd`"
++cd "`dirname \"$PRG\"`/" >/dev/null
++APP_HOME="`pwd -P`"
++cd "$SAVED" >/dev/null
++
++APP_NAME="Gradle"
++APP_BASE_NAME=`basename "$0"`
++
++# Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
++DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
++
++# Use the maximum available, or set MAX_FD to "maximum" or a specific value.
++MAX_FD="maximum"
++
++warn () {
++    echo "$*"
++}
++
++die () {
++    echo
++    echo "$*"
++    echo
++    exit 1
++}
++
++# OS specific support (must be 'true' or 'false').
++cygwin=false
++msys=false
++darwin=false
++nonstop=false
++case "`uname`" in
++  CYGWIN* ) cygwin=true ;;
++  Darwin* ) darwin=true ;;
++  MINGW* ) msys=true ;;
++  NONSTOP* ) nonstop=true ;;
++esac
++
++CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
++
++# Determine the Java command to use to start the JVM.
++if [ -n "$JAVA_HOME" ] ; then
++    if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
++        # IBM's JDK on AIX uses strange locations for the executables
++        JAVACMD="$JAVA_HOME/jre/sh/java"
++    else
++        JAVACMD="$JAVA_HOME/bin/java"
++    fi
++    if [ ! -x "$JAVACMD" ] ; then
++        die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME
++Please set the JAVA_HOME variable in your environment to match the
++location of your Java installation."
++    fi
++else
++    JAVACMD="java"
++    which java >/dev/null 2>&1 || die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
++Please set the JAVA_HOME variable in your environment to match the
++location of your Java installation."
++fi
++
++# Increase the maximum file descriptors if we can.
++if [ "$cygwin" = "false" -a "$darwin" = "false" -a "$nonstop" = "false" ] ; then
++    MAX_FD_LIMIT=`ulimit -H -n`
++    if [ $? -eq 0 ] ; then
++        if [ "$MAX_FD" = "maximum" -o "$MAX_FD" = "max" ] ; then
++            MAX_FD="$MAX_FD_LIMIT"
++        fi
++        ulimit -n $MAX_FD
++        if [ $? -ne 0 ] ; then
++            warn "Could not set maximum file descriptor limit: $MAX_FD"
++        fi
++    else
++        warn "Could not query maximum file descriptor limit: $MAX_FD_LIMIT"
++    fi
++fi
++
++# For Darwin, add options to specify how the application appears in the dock
++if $darwin; then
++    GRADLE_OPTS="$GRADLE_OPTS \"-Xdock:name=$APP_NAME\" \"-Xdock:icon=$APP_HOME/media/gradle.icns\""
++fi
++
++# For Cygwin or MSYS, switch paths to Windows format before running java
++if [ "$cygwin" = "true" -o "$msys" = "true" ] ; then
++    APP_HOME=`cygpath --path --mixed "$APP_HOME"`
++    CLASSPATH=`cygpath --path --mixed "$CLASSPATH"`
++    JAVACMD=`cygpath --unix "$JAVACMD"`
+
++    # We build the pattern for arguments to be converted via cygpath
++    ROOTDIRSRAW=`find / -maxdepth 1 -mindepth 1 -type d 2>/dev/null`
++    SEP=""
++    for dir in $ROOTDIRSRAW ; do
++        ROOTDIRS="$ROOTDIRS$SEP$dir"
++        SEP="|"
++    done
++    OURCYGPATTERN="(^($ROOTDIRS))"
++    if [ "$GRADLE_CYGPATTERN" != "" ] ; then
++        OURCYGPATTERN="$OURCYGPATTERN|($GRADLE_CYGPATTERN)"
++    fi
++    # Now convert the arguments kludge to limit ourselves to /bin/sh
++    i=0
++    for arg in "$@" ; do
++        CHECK=`echo "$arg" | egrep -c "$OURCYGPATTERN" -`
++        CHECK2=`echo "$arg" | egrep -c "^-"`
++        if [ $CHECK -ne 0 -a $CHECK2 -eq 0 ] ; then
++            eval $(echo args$i)=`cygpath --path --mixed "$arg"`
++        else
++            eval $(echo args$i)="\"$arg\""
++        fi
++        i=`expr $i + 1`
++    done
++    case $i in
++        0) set -- ;;
++        1) set -- "$args0" ;;
++        2) set -- "$args0" "$args1" ;;
++        3) set -- "$args0" "$args1" "$args2" ;;
++        4) set -- "$args0" "$args1" "$args2" "$args3" ;;
++        5) set -- "$args0" "$args1" "$args2" "$args3" "$args4" ;;
++        6) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" ;;
++        7) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" ;;
++        8) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" ;;
++        9) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" "$args8" ;;
++    esac
++fi
+
++# Escape application args
++save () {
++    for i do printf %s\\n "$i" | sed "s/'/'\\\\''/g;1s/^/'/; \$s/\$/'/"; done
++    echo
++}
++APP_ARGS=$(save "$@")
+
++# Collect all arguments for the java command, following the shell quoting and substitution rules
++eval set -- $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS "\"-Dorg.gradle.appname=$APP_BASE_NAME\"" -classpath "\"$CLASSPATH\"" org.gradle.wrapper.GradleWrapperMain "$APP_ARGS"
+
++exec "$JAVACMD" "$@"
+diff --git a/gradlew.bat b/gradlew.bat
+new file mode 100644
+index 0000000..107acd3
+--- /dev/null
++++ b/gradlew.bat
+@@ -0,0 +1,89 @@
++@rem
++@rem Copyright 2015 the original author or authors.
++@rem
++@rem Licensed under the Apache License, Version 2.0 (the "License");
++@rem you may not use this file except in compliance with the License.
++@rem You may obtain a copy of the License at
++@rem
++@rem      https://www.apache.org/licenses/LICENSE-2.0
++@rem
++@rem Unless required by applicable law or agreed to in writing, software
++@rem distributed under the License is distributed on an "AS IS" BASIS,
++@rem WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++@rem See the License for the specific language governing permissions and
++@rem limitations under the License.
++@rem
++
++@if "%DEBUG%" == "" @echo off
++@rem ##########################################################################
++@rem
++@rem  Gradle startup script for Windows
++@rem
++@rem ##########################################################################
++
++@rem Set local scope for the variables with windows NT shell
++if "%OS%"=="Windows_NT" setlocal
++
++set DIRNAME=%~dp0
++if "%DIRNAME%" == "" set DIRNAME=.
++set APP_BASE_NAME=%~n0
++set APP_HOME=%DIRNAME%
++
++@rem Resolve any . and .. in APP_HOME to make it shorter.
++for %%i in ("%APP_HOME%") do set APP_HOME=%%~fi
++
++@rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
++set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
++
++@rem Find java.exe
++if defined JAVA_HOME goto findJavaFromJavaHome
++
++set JAVA_EXE=java.exe
++%JAVA_EXE% -version >NUL 2>&1
++if "%ERRORLEVEL%" == "0" goto execute
++
++echo.
++echo ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
++echo.
++echo Please set the JAVA_HOME variable in your environment to match the
++echo location of your Java installation.
++
++goto fail
++
++:findJavaFromJavaHome
++set JAVA_HOME=%JAVA_HOME:"=%
++set JAVA_EXE=%JAVA_HOME%/bin/java.exe
++
++if exist "%JAVA_EXE%" goto execute
++
++echo.
++echo ERROR: JAVA_HOME is set to an invalid directory: %JAVA_HOME%
++echo.
++echo Please set the JAVA_HOME variable in your environment to match the
++echo location of your Java installation.
++
++goto fail
++
++:execute
++@rem Setup the command line
++set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
++
++@rem Execute Gradle
++"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %*
++
++:mainEnd
++if "%ERRORLEVEL%"=="0" goto mainEnd
++
++:fail
++rem Set variable GRADLE_EXIT_CONSOLE if you need the script return code instead of
++rem the cmd.exe /c return code!
++if  not "%GRADLE_EXIT_CONSOLE%" == "" exit 1
++exit /b 1
++
++:mainEnd
++if "%OS%"=="Windows_NT" endlocal
++
++:omega
+diff --git a/selenoid/config/browsers.json b/selenoid/config/browsers.json
+new file mode 100644
+index 0000000..d9ad746
+--- /dev/null
++++ b/selenoid/config/browsers.json
+@@ -0,0 +1,12 @@
++{
++  "chrome": {
++    "default": "126.0",
++    "versions": {
++      "126.0": {
++        "image": "selenoid/vnc_chrome:126.0",
++        "port": "4444",
++        "path": "/"
++      }
++    }
++  }
++}
+diff --git a/settings.gradle.kts b/settings.gradle.kts
+new file mode 100644
+index 0000000..45c9ff8
+--- /dev/null
++++ b/settings.gradle.kts
+@@ -0,0 +1,25 @@
++// Plugin setup for the project.
++pluginManagement {
++    // Declare the MS Artifactory repository from which gradle plugins are pulled.
++    repositories {
++        maven {
++            name = "pluginsBootstrap"
++            url = uri("https://msdeartprod.ms.com/artifactory/train-maven-plugins-local")
++        }
++    }
++    // Versioned plugins. Versions are centralized in gradle.properties.
++    plugins {
++        val pluginVersionMsdeBundle: String by settings
++        id("com.ms.gradle.artifactory").version(pluginVersionMsdeBundle)
++        val springBootPluginVersion: String by settings
++        id("org.springframework.boot").version(springBootPluginVersion)
++    }
++}
+
++// Apply the MS artifactory plugin so all other plugins/dependencies resolve from Artifactory.
++plugins {
++    id("com.ms.gradle.artifactory")
++}
+
++rootProject.name = "selenium-demo"
+diff --git a/src/main/java/com/example/seleniumdemo/SeleniumDemoApplication.java b/src/main/java/com/example/seleniumdemo/SeleniumDemoApplication.java
+new file mode 100644
+index 0000000..a649f81
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/SeleniumDemoApplication.java
+@@ -0,0 +1,18 @@
++package com.example.seleniumdemo;
++
++import org.springframework.boot.SpringApplication;
++import org.springframework.boot.autoconfigure.SpringBootApplication;
++import org.springframework.cache.annotation.EnableCaching;
++import org.springframework.scheduling.annotation.EnableAsync;
++import org.springframework.scheduling.annotation.EnableScheduling;
++
++@SpringBootApplication
++@EnableCaching      // enables the mapping / session caches
++@EnableAsync        // Selenium flows run on a dedicated thread pool
++@EnableScheduling   // background cleanup of idle browser sessions
++public class SeleniumDemoApplication {
++
++    public static void main(String[] args) {
++        SpringApplication.run(SeleniumDemoApplication.class, args);
++    }
++}
+diff --git a/src/main/java/com/example/seleniumdemo/config/AsyncConfig.java b/src/main/java/com/example/seleniumdemo/config/AsyncConfig.java
+new file mode 100644
+index 0000000..4344865
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/config/AsyncConfig.java
+@@ -0,0 +1,34 @@
++package com.example.seleniumdemo.config;
++
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++import org.springframework.scheduling.annotation.AsyncConfigurer;
++import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
++
++import java.util.concurrent.Executor;
+
++/**
++ * Dedicated thread pool so blocking Selenium calls never starve Tomcat's
++ * request threads. Each browser flow runs on this pool.
++ */
++@Configuration
++public class AsyncConfig implements AsyncConfigurer {
+
++    public static final String FLOW_EXECUTOR = "flowExecutor";
+
++    @Bean(name = FLOW_EXECUTOR)
++    public Executor flowExecutor() {
++        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
++        executor.setCorePoolSize(4);
++        executor.setMaxPoolSize(10);
++        executor.setQueueCapacity(25);
++        executor.setThreadNamePrefix("selenium-flow-");
++        executor.initialize();
++        return executor;
++    }
+
++    @Override
++    public Executor getAsyncExecutor() {
++        return flowExecutor();
++    }
++}
+diff --git a/src/main/java/com/example/seleniumdemo/config/CacheConfig.java b/src/main/java/com/example/seleniumdemo/config/CacheConfig.java
+new file mode 100644
+index 0000000..8c6af9b
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/config/CacheConfig.java
+@@ -0,0 +1,24 @@
++package com.example.seleniumdemo.config;
++
++import org.springframework.cache.CacheManager;
++import org.springframework.cache.annotation.CachingConfigurer;
++import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++
++@Configuration
++public class CacheConfig implements CachingConfigurer {
+
++    public static final String MAPPINGS_CACHE = "fieldMappings";
++    public static final String FORM_DATA_CACHE = "formData";
+
++    /**
++     * Simple in-memory cache. Swap ConcurrentMapCacheManager for Caffeine or
++     * Redis in production for eviction policies / distributed caching.
++     */
++    @Bean
++    @Override
++    public CacheManager cacheManager() {
++        return new ConcurrentMapCacheManager(MAPPINGS_CACHE, FORM_DATA_CACHE);
++    }
++}
+diff --git a/src/main/java/com/example/seleniumdemo/config/SecurityConfig.java b/src/main/java/com/example/seleniumdemo/config/SecurityConfig.java
+new file mode 100644
+index 0000000..2b15a3c
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/config/SecurityConfig.java
+@@ -0,0 +1,69 @@
++package com.example.seleniumdemo.config;
++
++import com.example.seleniumdemo.security.JwtAuthFilter;
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++import org.springframework.http.HttpMethod;
++import org.springframework.security.authentication.AuthenticationManager;
++import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
++import org.springframework.security.config.annotation.web.builders.HttpSecurity;
++import org.springframework.security.config.http.SessionCreationPolicy;
++import org.springframework.security.core.userdetails.User;
++import org.springframework.security.core.userdetails.UserDetailsService;
++import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
++import org.springframework.security.crypto.password.PasswordEncoder;
++import org.springframework.security.provisioning.InMemoryUserDetailsManager;
++import org.springframework.security.web.SecurityFilterChain;
++import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
++
++@Configuration
++public class SecurityConfig {
+
++    private final JwtAuthFilter jwtAuthFilter;
+
++    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
++        this.jwtAuthFilter = jwtAuthFilter;
++    }
+
++    /**
++     * The REST API (/api/**) is stateless and protected by JWT.
++     * The Thymeleaf pages themselves are public shells; the JS on them
++     * attaches the JWT (from localStorage) when calling the API.
++     */
++    @Bean
++    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
++        http
++            .csrf(csrf -> csrf.disable())
++            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
++            .authorizeHttpRequests(auth -> auth
++                .requestMatchers("/", "/login", "/dashboard").permitAll()
++                .requestMatchers("/sample-form").permitAll()
++                .requestMatchers("/css/**", "/js/**", "/webjars/**").permitAll()
++                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
++                .requestMatchers("/api/**").authenticated()
++                .anyRequest().permitAll()
++            )
++            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
++        return http.build();
++    }
+
++    /** Demo users. Replace with a real UserDetailsService / DB in production. */
++    @Bean
++    public UserDetailsService userDetailsService(PasswordEncoder encoder) {
++        var operator = User.withUsername("operator")
++            .password(encoder.encode("password"))
++            .roles("OPERATOR")
++            .build();
++        return new InMemoryUserDetailsManager(operator);
++    }
+
++    @Bean
++    public PasswordEncoder passwordEncoder() {
++        return new BCryptPasswordEncoder();
++    }
+
++    @Bean
++    public AuthenticationManager authenticationManager(AuthenticationConfiguration cfg) throws Exception {
++        return cfg.getAuthenticationManager();
++    }
++}
+diff --git a/src/main/java/com/example/seleniumdemo/controller/AuthController.java b/src/main/java/com/example/seleniumdemo/controller/AuthController.java
+new file mode 100644
+index 0000000..8f2cd3a
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/controller/AuthController.java
+@@ -0,0 +1,40 @@
++package com.example.seleniumdemo.controller;
++
++import com.example.seleniumdemo.model.LoginRequest;
++import com.example.seleniumdemo.security.JwtService;
++import jakarta.validation.Valid;
++import org.springframework.http.ResponseEntity;
++import org.springframework.security.authentication.AuthenticationManager;
++import org.springframework.security.authentication.BadCredentialsException;
++import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
++import org.springframework.web.bind.annotation.PostMapping;
++import org.springframework.web.bind.annotation.RequestBody;
++import org.springframework.web.bind.annotation.RequestMapping;
++import org.springframework.web.bind.annotation.RestController;
++
++import java.util.Map;
++
++@RestController
++@RequestMapping("/api/auth")
++public class AuthController {
+
++    private final AuthenticationManager authenticationManager;
++    private final JwtService jwtService;
+
++    public AuthController(AuthenticationManager authenticationManager, JwtService jwtService) {
++        this.authenticationManager = authenticationManager;
++        this.jwtService = jwtService;
++    }
+
++    @PostMapping("/login")
++    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
++        try {
++            authenticationManager.authenticate(
++                new UsernamePasswordAuthenticationToken(request.username(), request.password()));
++        } catch (BadCredentialsException e) {
++            return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
++        }
++        String token = jwtService.generateToken(request.username());
++        return ResponseEntity.ok(Map.of("token", token, "tokenType", "Bearer"));
++    }
++}
+diff --git a/src/main/java/com/example/seleniumdemo/controller/FlowController.java b/src/main/java/com/example/seleniumdemo/controller/FlowController.java
+new file mode 100644
+index 0000000..4c7ecf4
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/controller/FlowController.java
+@@ -0,0 +1,91 @@
++package com.example.seleniumdemo.controller;
++
++import com.example.seleniumdemo.model.FlowSession;
++import com.example.seleniumdemo.model.StartFlowRequest;
++import com.example.seleniumdemo.service.SeleniumFlowService;
++import com.example.seleniumdemo.service.SessionRegistry;
++import jakarta.validation.Valid;
++import org.springframework.http.ResponseEntity;
++import org.springframework.scheduling.annotation.Async;
++import org.springframework.security.core.Authentication;
++import org.springframework.web.bind.annotation.*;
++
++import java.util.HashMap;
++import java.util.Map;
++import java.util.concurrent.CompletableFuture;
+
++/**
++ * Human-in-the-loop flow API. All endpoints require a valid JWT.
++ * Flows run on the dedicated async executor so request threads never block.
++ */
++@RestController
++@RequestMapping("/api/flow")
++public class FlowController {
+
++    private final SeleniumFlowService flowService;
++    private final SessionRegistry registry;
+
++    public FlowController(SeleniumFlowService flowService, SessionRegistry registry) {
++        this.flowService = flowService;
++        this.registry = registry;
++    }
+
++    /** Start + fill (but not submit). Returns the session id and the VNC url to embed. */
++    @PostMapping("/start")
++    @Async
++    public CompletableFuture<ResponseEntity<?>> start(@Valid @RequestBody StartFlowRequest request,
++                                                      Authentication auth) {
++        String owner = auth.getName();
++        try {
++            FlowSession session = flowService.startAndFill(owner, request.targetUrl(), request.dataRow());
++            Map<String, Object> body = new HashMap<>();
++            body.put("sessionId", session.getId());
++            body.put("vncUrl", session.getVncUrl()); // null in local mode
++            body.put("status", session.getStatus().name());
++            return CompletableFuture.completedFuture(ResponseEntity.ok(body));
++        } catch (Exception e) {
++            return CompletableFuture.completedFuture(
++                ResponseEntity.status(500).body(Map.of("error", e.getMessage())));
++        }
++    }
+
++    /** Poll current status of a session. */
++    @GetMapping("/{sessionId}/status")
++    public ResponseEntity<?> status(@PathVariable String sessionId, Authentication auth) {
++        return registry.getOwned(sessionId, auth.getName())
++            .<ResponseEntity<?>>map(s -> {
++                Map<String, Object> body = new HashMap<>();
++                body.put("sessionId", s.getId());
++                body.put("status", s.getStatus().name());
++                body.put("vncUrl", s.getVncUrl()); // null in local mode
++                return ResponseEntity.ok(body);
++            })
++            .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "Session not found")));
++    }
+
++    /** Human verified the filled form and clicks submit from the dashboard. */
++    @PostMapping("/{sessionId}/submit")
++    public ResponseEntity<?> submit(@PathVariable String sessionId,
++                                    @RequestBody Map<String, String> body,
++                                    Authentication auth) {
++        return registry.getOwned(sessionId, auth.getName())
++            .<ResponseEntity<?>>map(s -> {
++                flowService.submit(s,
++                    body.getOrDefault("submitLocatorType", "css"),
++                    body.getOrDefault("submitLocatorValue", "button[type=submit]"));
++                return ResponseEntity.ok(Map.of("status", s.getStatus().name()));
++            })
++            .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "Session not found")));
++    }
+
++    /** Human cancels: quit the browser and discard the session. */
++    @DeleteMapping("/{sessionId}")
++    public ResponseEntity<?> cancel(@PathVariable String sessionId, Authentication auth) {
++        return registry.getOwned(sessionId, auth.getName())
++            .<ResponseEntity<?>>map(s -> {
++                flowService.cancel(s);
++                return ResponseEntity.ok(Map.of("status", "CLOSED"));
++            })
++            .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "Session not found")));
++    }
++}
+diff --git a/src/main/java/com/example/seleniumdemo/controller/UiController.java b/src/main/java/com/example/seleniumdemo/controller/UiController.java
+new file mode 100644
+index 0000000..2ab4b42
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/controller/UiController.java
+@@ -0,0 +1,36 @@
++package com.example.seleniumdemo.controller;
++
++import org.springframework.stereotype.Controller;
++import org.springframework.ui.Model;
++import org.springframework.web.bind.annotation.GetMapping;
++import org.springframework.web.bind.annotation.PostMapping;
+
++/** Serves the Thymeleaf page shells. */
++@Controller
++public class UiController {
+
++    @GetMapping({"/", "/login"})
++    public String login() {
++        return "login";
++    }
+
++    @GetMapping("/dashboard")
++    public String dashboard() {
++        return "dashboard";
++    }
+
++    /**
++     * Local sample form used to test the Selenium flow end-to-end without
++     * needing an external website. Its element locators match mapping.csv.
++     */
++    @GetMapping("/sample-form")
++    public String sampleForm() {
++        return "sample-form";
++    }
+
++    @PostMapping("/sample-form")
++    public String sampleFormSubmit(Model model) {
++        model.addAttribute("submitted", true);
++        return "sample-form";
++    }
++}
+diff --git a/src/main/java/com/example/seleniumdemo/model/FieldMapping.java b/src/main/java/com/example/seleniumdemo/model/FieldMapping.java
+new file mode 100644
+index 0000000..087f8ae
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/model/FieldMapping.java
+@@ -0,0 +1,27 @@
++package com.example.seleniumdemo.model;
++
++import org.openqa.selenium.By;
+
++/**
++ * One row of mapping.csv.
++ * csvColumn    -> the column name in the source data csv/excel
++ * locatorType  -> how to find the element (id, name, css, xpath, class)
++ * locatorValue -> the actual selector value
++ */
++public record FieldMapping(String csvColumn, String locatorType, String locatorValue) {
+
++    /** Translate the mapping into a Selenium By locator. */
++    public By toBy() {
++        return switch (locatorType.trim().toLowerCase()) {
++            case "id"    -> By.id(locatorValue);
++            case "name"  -> By.name(locatorValue);
++            case "css"   -> By.cssSelector(locatorValue);
++            case "xpath" -> By.xpath(locatorValue);
++            case "class" -> By.className(locatorValue);
++            case "tag"   -> By.tagName(locatorValue);
++            default -> throw new IllegalArgumentException(
++                "Unsupported locator type: " + locatorType + " (column: " + csvColumn + ")");
++        };
++    }
++}
+diff --git a/src/main/java/com/example/seleniumdemo/model/FlowSession.java b/src/main/java/com/example/seleniumdemo/model/FlowSession.java
+new file mode 100644
+index 0000000..0d10889
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/model/FlowSession.java
+@@ -0,0 +1,40 @@
++package com.example.seleniumdemo.model;
++
++import org.openqa.selenium.remote.RemoteWebDriver;
++
++import java.time.Instant;
+
++/**
++ * Holds a live browser session between "fill" and the human "submit".
++ * Mutable last-touch timestamp lets the cleanup scheduler expire idle sessions.
++ */
++public class FlowSession {
+
++    private final String id;
++    private final String owner; // username who started the flow
++    private final RemoteWebDriver driver;
++    private final String vncUrl;
++    private volatile Status status;
++    private volatile Instant lastAccess;
+
++    public enum Status { FILLING, AWAITING_SUBMIT, SUBMITTED, CLOSED, ERROR }
+
++    public FlowSession(String id, String owner, RemoteWebDriver driver, String vncUrl) {
++        this.id = id;
++        this.owner = owner;
++        this.driver = driver;
++        this.vncUrl = vncUrl;
++        this.status = Status.FILLING;
++        this.lastAccess = Instant.now();
++    }
+
++    public void touch() { this.lastAccess = Instant.now(); }
+
++    public String getId() { return id; }
++    public String getOwner() { return owner; }
++    public RemoteWebDriver getDriver() { return driver; }
++    public String getVncUrl() { return vncUrl; }
++    public Status getStatus() { return status; }
++    public void setStatus(Status status) { this.status = status; }
++    public Instant getLastAccess() { return lastAccess; }
++}
+diff --git a/src/main/java/com/example/seleniumdemo/model/LoginRequest.java b/src/main/java/com/example/seleniumdemo/model/LoginRequest.java
+new file mode 100644
+index 0000000..300b3a3
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/model/LoginRequest.java
+@@ -0,0 +1,8 @@
++package com.example.seleniumdemo.model;
++
++import jakarta.validation.constraints.NotBlank;
+
++public record LoginRequest(
++    @NotBlank String username,
++    @NotBlank String password) {
++}
+diff --git a/src/main/java/com/example/seleniumdemo/model/StartFlowRequest.java b/src/main/java/com/example/seleniumdemo/model/StartFlowRequest.java
+new file mode 100644
+index 0000000..5761bfa
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/model/StartFlowRequest.java
+@@ -0,0 +1,14 @@
++package com.example.seleniumdemo.model;
++
++import jakarta.validation.constraints.NotBlank;
+
++/**
++ * Request to start a flow.
++ * targetUrl -> the external form page Selenium should open
++ * dataRow   -> which row (0-based) of data.csv to use as the form values
++ */
++public record StartFlowRequest(
++    @NotBlank String targetUrl,
++    int dataRow) {
++}
+diff --git a/src/main/java/com/example/seleniumdemo/security/JwtAuthFilter.java b/src/main/java/com/example/seleniumdemo/security/JwtAuthFilter.java
+new file mode 100644
+index 0000000..ad25944
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/security/JwtAuthFilter.java
+@@ -0,0 +1,57 @@
++package com.example.seleniumdemo.security;
++
++import jakarta.servlet.FilterChain;
++import jakarta.servlet.ServletException;
++import jakarta.servlet.http.HttpServletRequest;
++import jakarta.servlet.http.HttpServletResponse;
++import org.springframework.lang.NonNull;
++import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
++import org.springframework.security.core.authority.SimpleGrantedAuthority;
++import org.springframework.security.core.context.SecurityContextHolder;
++import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
++import org.springframework.stereotype.Component;
++import org.springframework.web.filter.OncePerRequestFilter;
+
++import java.io.IOException;
++import java.util.List;
+
++/** Reads the Bearer token, validates it, and populates the SecurityContext. */
++@Component
++public class JwtAuthFilter extends OncePerRequestFilter {
+
++    private final JwtService jwtService;
+
++    public JwtAuthFilter(JwtService jwtService) {
++        this.jwtService = jwtService;
++    }
+
++    @Override
++    protected void doFilterInternal(@NonNull HttpServletRequest request,
++                                    @NonNull HttpServletResponse response,
++                                    @NonNull FilterChain filterChain)
++            throws ServletException, IOException {
+
++        String header = request.getHeader("Authorization");
++        if (header == null || !header.startsWith("Bearer ")) {
++            filterChain.doFilter(request, response);
++            return;
++        }
+
++        String token = header.substring(7);
++        try {
++            String username = jwtService.extractUsername(token);
++            if (username != null
++                    && SecurityContextHolder.getContext().getAuthentication() == null
++                    && jwtService.isValid(token, username)) {
+
++                var authorities = List.of(new SimpleGrantedAuthority("ROLE_OPERATOR"));
++                var authToken = new UsernamePasswordAuthenticationToken(username, null, authorities);
++                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
++                SecurityContextHolder.getContext().setAuthentication(authToken);
++            }
++        } catch (Exception ignored) {
++            // invalid/expired token: leave context unauthenticated
++        }
++        filterChain.doFilter(request, response);
++    }
++}
+diff --git a/src/main/java/com/example/seleniumdemo/security/JwtService.java b/src/main/java/com/example/seleniumdemo/security/JwtService.java
+new file mode 100644
+index 0000000..5af86b7
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/security/JwtService.java
+@@ -0,0 +1,58 @@
++package com.example.seleniumdemo.security;
++
++import io.jsonwebtoken.Claims;
++import io.jsonwebtoken.Jwts;
++import io.jsonwebtoken.security.Keys;
++import org.springframework.beans.factory.annotation.Value;
++import org.springframework.stereotype.Service;
+
++import javax.crypto.SecretKey;
++import java.nio.charset.StandardCharsets;
++import java.util.Date;
++import java.util.function.Function;
+
++/** Creates and validates JWT access tokens. */
++@Service
++public class JwtService {
+
++    private final SecretKey key;
++    private final long expirationMs;
+
++    public JwtService(
++            @Value("${app.jwt.secret}") String secret,
++            @Value("${app.jwt.expiration-ms}") long expirationMs) {
++        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
++        this.expirationMs = expirationMs;
++    }
+
++    public String generateToken(String username) {
++        Date now = new Date();
++        return Jwts.builder()
++            .subject(username)
++            .issuedAt(now)
++            .expiration(new Date(now.getTime() + expirationMs))
++            .signWith(key)
++            .compact();
++    }
+
++    public String extractUsername(String token) {
++        return extractClaim(token, Claims::getSubject);
++    }
+
++    public boolean isValid(String token, String username) {
++        return username.equals(extractUsername(token)) && !isExpired(token);
++    }
+
++    private boolean isExpired(String token) {
++        return extractClaim(token, Claims::getExpiration).before(new Date());
++    }
+
++    private <T> T extractClaim(String token, Function<Claims, T> resolver) {
++        Claims claims = Jwts.parser()
++            .verifyWith(key)
++            .build()
++            .parseSignedClaims(token)
++            .getPayload();
++        return resolver.apply(claims);
++    }
++}
+diff --git a/src/main/java/com/example/seleniumdemo/service/MappingService.java b/src/main/java/com/example/seleniumdemo/service/MappingService.java
+new file mode 100644
+index 0000000..3ccd7fc
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/service/MappingService.java
+@@ -0,0 +1,890 @@
++package com.example.seleniumdemo.service;
++
++import com.example.seleniumdemo.config.CacheConfig;
++import com.example.seleniumdemo.model.FieldMapping;
++import org.apache.commons.csv.CSVFormat;
++import org.apache.commons.csv.CSVParser;
++import org.apache.commons.csv.CSVRecord;
++import org.springframework.cache.annotation.Cacheable;
++import org.springframework.core.io.Resource;
++import org.springframework.core.io.ResourceLoader;
++import org.springframework.stereotype.Service;
++
++import java.io.InputStreamReader;
++import java.io.Reader;
++import java.io.UncheckedIOException;
++import java.nio.charset.StandardCharsets;
++import java.util.ArrayList;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Map;
+
++/**
++ * Loads (and caches) the field mapping and the form-data rows from CSV.
++ * mapping.csv columns: csvColumn, locatorType, locatorValue
++ * data.csv    columns: one column per csvColumn referenced in mapping.csv
++ */
++@Service
++public class MappingService {
+
++    private final ResourceLoader resourceLoader;
+
++    public MappingService(ResourceLoader resourceLoader) {
++        this.resourceLoader = resourceLoader;
++    }
+
++    @Cacheable(CacheConfig.MAPPINGS_CACHE)
++    public List<FieldMapping> loadMappings() {
++        Resource resource = resourceLoader.getResource("classpath:mapping.csv");
++        List<FieldMapping> mappings = new ArrayList<>();
++        try (Reader reader = new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8);
++             CSVParser parser = CSVFormat.DEFAULT.builder()
++                 .setHeader().setSkipHeaderRecord(true).setTrim(true).build().parse(reader)) {
++            for (CSVRecord record : parser) {
++                mappings.add(new FieldMapping(
++                    record.get("csvColumn"),
++                    record.get("locatorType"),
++                    record.get("locatorValue")));
++            }
++        } catch (Exception e) {
++            throw new UncheckedIOException("Failed to read mapping.csv",
++                e instanceof java.io.IOException io ? io : new java.io.IOException(e));
++        }
++        return mappings;
++    }
+
++    /** Returns each data row as a column->value map. */
++    @Cacheable(CacheConfig.FORM_DATA_CACHE)
++    public List<Map<String, String>> loadFormData() {
++        Resource resource = resourceLoader.getResource("classpath:data.csv");
++        List<Map<String, String>> rows = new ArrayList<>();
++        try (Reader reader = new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8);
++             CSVParser parser = CSVFormat.DEFAULT.builder()
++                 .setHeader().setSkipHeaderRecord(true).setTrim(true).build().parse(reader)) {
++            List<String> headers = parser.getHeaderNames();
++            for (CSVRecord record : parser) {
++                Map<String, String> row = new LinkedHashMap<>();
++                for (String header : headers) {
++                    row.put(header, record.get(header));
++                }
++                rows.add(row);
++            }
++        } catch (Exception e) {
++            throw new UncheckedIOException("Failed to read data.csv",
++                e instanceof java.io.IOException io ? io : new java.io.IOException(e));
++        }
++        return rows;
++    }
+
++    public Map<String, String> getRow(int index) {
++        List<Map<String, String>> rows = loadFormData();
++        if (index < 0 || index >= rows.size()) {
++            throw new IllegalArgumentException("dataRow " + index + " out of range (0.." + (rows.size() - 1) + ")");
++        }
++        return rows.get(index);
++    }
++}
+diff --git a/src/main/java/com/example/seleniumdemo/service/SeleniumFlowService.java b/src/main/java/com/example/seleniumdemo/service/SeleniumFlowService.java
+new file mode 100644
+index 0000000..86fea6e
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/service/SeleniumFlowService.java
+@@ -0,0 +1,140 @@
++package com.example.seleniumdemo.service;
++
++import com.example.seleniumdemo.model.FieldMapping;
++import com.example.seleniumdemo.model.FlowSession;
++import org.openqa.selenium.WebElement;
++import org.openqa.selenium.chrome.ChromeDriver;
++import org.openqa.selenium.chrome.ChromeOptions;
++import org.openqa.selenium.remote.RemoteWebDriver;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++import org.springframework.beans.factory.annotation.Value;
++import org.springframework.stereotype.Service;
+
++import java.net.URL;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.UUID;
+
++/**
++ * Drives a browser and:
++ * 1. opens the target form
++ * 2. fills each field from data.csv using the mapping.csv locators
++ * 3. STOPS before submit leaving the session live for human verification
++ * 4. submits (or closes) only when the human asks.
++ *
++ * Two modes (app.selenium.mode):
++ * "local"  -> a real Chrome window opens ON THIS MACHINE (no Docker).
++ *             Selenium Manager auto-downloads the driver. The human verifies
++ *             and submits directly in that visible window or via the dashboard.
++ * "remote" -> talks to Selenoid/Grid and exposes a VNC url for the dashboard.
++ */
++@Service
++public class SeleniumFlowService {
+
++    private static final Logger log = LoggerFactory.getLogger(SeleniumFlowService.class);
+
++    private final MappingService mappingService;
++    private final SessionRegistry registry;
++    private final String mode;
++    private final String seleniumUrl;
++    private final String selenoidUiBase;
++    private final boolean enableVnc;
+
++    public SeleniumFlowService(MappingService mappingService,
++                               SessionRegistry registry,
++                               @Value("${app.selenium.mode:local}") String mode,
++                               @Value("${app.selenium.remote-url:}") String seleniumUrl,
++                               @Value("${app.selenium.selenoid-ui-base:}") String selenoidUiBase,
++                               @Value("${app.selenium.enable-vnc:false}") boolean enableVnc) {
++        this.mappingService = mappingService;
++        this.registry = registry;
++        this.mode = mode;
++        this.seleniumUrl = seleniumUrl;
++        this.selenoidUiBase = selenoidUiBase;
++        this.enableVnc = enableVnc;
++    }
+
++    /** Start a flow: open the page and fill it, but do NOT submit. Returns the session. */
++    public FlowSession startAndFill(String owner, String targetUrl, int dataRow) throws Exception {
++        List<FieldMapping> mappings = mappingService.loadMappings();
++        Map<String, String> data = mappingService.getRow(dataRow);
+
++        RemoteWebDriver driver = createDriver();
++        String sessionId = UUID.randomUUID().toString();
++        String vncUrl = buildVncUrl(driver);
++        FlowSession session = new FlowSession(sessionId, owner, driver, vncUrl);
+
++        try {
++            registry.register(session);
++            driver.get(targetUrl);
+
++            for (FieldMapping mapping : mappings) {
++                String value = data.get(mapping.csvColumn());
++                if (value == null || value.isEmpty()) {
++                    log.debug("No data for column '{}', skipping", mapping.csvColumn());
++                    continue;
++                }
++                WebElement element = driver.findElement(mapping.toBy());
++                element.clear();
++                element.sendKeys(value);
++                log.debug("Filled {} = {}", mapping.csvColumn(), value);
++            }
++            session.setStatus(FlowSession.Status.AWAITING_SUBMIT);
++        } catch (Exception e) {
++            session.setStatus(FlowSession.Status.ERROR);
++            registry.remove(sessionId);
++            throw e;
++        }
++        return session;
++    }
+
++    /** Called after the human has visually verified the filled form. */
++    public void submit(FlowSession session, String submitLocatorType, String submitLocatorValue) {
++        FieldMapping submit = new FieldMapping("submit", submitLocatorType, submitLocatorValue);
++        session.getDriver().findElement(submit.toBy()).click();
++        session.setStatus(FlowSession.Status.SUBMITTED);
++    }
+
++    /** Human cancelled: discard the session and quit the browser. */
++    public void cancel(FlowSession session) {
++        session.setStatus(FlowSession.Status.CLOSED);
++        registry.remove(session.getId());
++    }
+
++    private boolean isLocal() {
++        return "local".equalsIgnoreCase(mode);
++    }
+
++    private RemoteWebDriver createDriver() throws Exception {
++        ChromeOptions options = new ChromeOptions();
++        if (isLocal()) {
++            // Real, visible Chrome on this machine. No Docker, no Selenoid.
++            // Selenium Manager (built into Selenium 4.6+) downloads chromedriver automatically.
++            options.addArguments("--start-maximized");
++            options.addArguments("--remote-allow-origins=*");
++            log.info("Starting LOCAL Chrome browser (visible window on this machine)");
++            return new ChromeDriver(options);
++        }
+
++        // Remote (Selenoid/Grid) mode
++        if (enableVnc) {
++            Map<String, Object> selenoidOptions = new HashMap<>();
++            selenoidOptions.put("enableVNC", true);
++            selenoidOptions.put("enableVideo", false);
++            selenoidOptions.put("sessionTimeout", "10m");
++            options.setCapability("selenoid:options", selenoidOptions);
++        }
++        URL url = java.net.URI.create(seleniumUrl).toURL();
++        return new RemoteWebDriver(url, options);
++    }
+
++    /** Local mode has no VNC url; the browser is visible directly on the machine. */
++    private String buildVncUrl(RemoteWebDriver driver) {
++        if (isLocal()) {
++            return null;
++        }
++        String seleniumSessionId = driver.getSessionId().toString();
++        return selenoidUiBase + "/#/sessions/" + seleniumSessionId;
++    }
++}
+diff --git a/src/main/java/com/example/seleniumdemo/service/SessionRegistry.java b/src/main/java/com/example/seleniumdemo/service/SessionRegistry.java
+new file mode 100644
+index 0000000..c7e54f1
+--- /dev/null
++++ b/src/main/java/com/example/seleniumdemo/service/SessionRegistry.java
+@@ -0,0 +1,84 @@
++package com.example.seleniumdemo.service;
++
++import com.example.seleniumdemo.model.FlowSession;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++import org.springframework.beans.factory.annotation.Value;
++import org.springframework.scheduling.annotation.Scheduled;
++import org.springframework.stereotype.Component;
+
++import java.time.Duration;
++import java.time.Instant;
++import java.util.Collection;
++import java.util.Optional;
++import java.util.concurrent.ConcurrentHashMap;
+
++/**
++ * Thread-safe registry of live browser sessions.
++ * Solves the "stateful session" limitation:
++ * - concurrent access via ConcurrentHashMap
++ * - a scheduled sweep quits idle browsers so they don't leak.
++ */
++@Component
++public class SessionRegistry {
+
++    private static final Logger log = LoggerFactory.getLogger(SessionRegistry.class);
+
++    private final ConcurrentHashMap<String, FlowSession> sessions = new ConcurrentHashMap<>();
++    private final Duration idleTimeout;
+
++    public SessionRegistry(@Value("${app.session.idle-timeout-seconds:300}") long idleTimeoutSeconds) {
++        this.idleTimeout = Duration.ofSeconds(idleTimeoutSeconds);
++    }
+
++    public void register(FlowSession session) {
++        sessions.put(session.getId(), session);
++    }
+
++    public Optional<FlowSession> get(String id) {
++        FlowSession s = sessions.get(id);
++        if (s != null) {
++            s.touch();
++        }
++        return Optional.ofNullable(s);
++    }
+
++    /** Get a session only if it belongs to the given owner (authorization guard). */
++    public Optional<FlowSession> getOwned(String id, String owner) {
++        return get(id).filter(s -> s.getOwner().equals(owner));
++    }
+
++    public Collection<FlowSession> all() {
++        return sessions.values();
++    }
+
++    public void remove(String id) {
++        FlowSession s = sessions.remove(id);
++        quitQuietly(s);
++    }
+
++    /** Runs every 60s: quit and drop sessions idle longer than the timeout. */
++    @Scheduled(fixedDelayString = "${app.session.cleanup-interval-ms:60000}")
++    public void reapIdleSessions() {
++        Instant cutoff = Instant.now().minus(idleTimeout);
++        for (FlowSession s : sessions.values()) {
++            if (s.getLastAccess().isBefore(cutoff)) {
++                log.info("Reaping idle session id={}, owner={}, status={}",
++                    s.getId(), s.getOwner(), s.getStatus());
++                sessions.remove(s.getId());
++                quitQuietly(s);
++            }
++        }
++    }
+
++    private void quitQuietly(FlowSession s) {
++        if (s == null || s.getDriver() == null) {
++            return;
++        }
++        try {
++            s.getDriver().quit();
++        } catch (Exception e) {
++            log.warn("Error quitting driver for session {}: {}", s.getId(), e.getMessage());
++        }
++    }
++}
+diff --git a/src/main/resources/application.yml b/src/main/resources/application.yml
+new file mode 100644
+index 0000000..058fbe6
+--- /dev/null
++++ b/src/main/resources/application.yml
+@@ -0,0 +1,28 @@
++server:
++  port: 8080
++
++spring:
++  application:
++    name: selenium-demo
++  thymeleaf:
++    cache: false
++
++app:
++  jwt:
++    # In production load this from an env var / secret manager, NOT the yml.
++    secret: "change-me-to-a-long-random-256-bit-secret-value-please-1234567890"
++    expiration-ms: 3600000 # 1 hour
++  selenium:
++    # "local"  -> opens a real Chrome window on this machine (NO Docker needed)
++    # "remote" -> uses Selenoid/Grid + VNC live view
++    mode: "local"
++    remote-url: "http://localhost:4444/wd/hub"     # only used in remote mode
++    selenoid-ui-base: "http://localhost:8888"      # only used in remote mode
++    enable-vnc: false
++  session:
++    idle-timeout-seconds: 300 # quit browsers idle > 5 min
++    cleanup-interval-ms: 60000 # sweep every minute
++
++logging:
++  level:
++    com.example.seleniumdemo: DEBUG
+diff --git a/src/main/resources/data.csv b/src/main/resources/data.csv
+new file mode 100644
+index 0000000..cbcc926
+--- /dev/null
++++ b/src/main/resources/data.csv
+@@ -0,0 +1,4 @@
++firstName,lastName,email,phone,country,comments
++Ada,Lovelace,ada@example.com,555-0100,UK,First programmer
++Alan,Turing,alan@example.com,555-0101,UK,Enigma solver
++Grace,Hopper,grace@example.com,555-0102,USA,Compiler pioneer
+diff --git a/src/main/resources/mapping.csv b/src/main/resources/mapping.csv
+new file mode 100644
+index 0000000..45d48ab
+--- /dev/null
++++ b/src/main/resources/mapping.csv
+@@ -0,0 +1,7 @@
++csvColumn,locatorType,locatorValue
++firstName,id,first-name
++lastName,id,last-name
++email,name,email
++phone,css,input.phone-field
++country,xpath,//select[@id='country']
++comments,class,comment-box
+diff --git a/src/main/resources/templates/dashboard.html b/src/main/resources/templates/dashboard.html
+new file mode 100644
+index 0000000..f87cd16
+--- /dev/null
++++ b/src/main/resources/templates/dashboard.html
+@@ -0,0 +1,132 @@
++<!DOCTYPE html>
++<html lang="en" xmlns:th="http://www.thymeleaf.org">
++<head>
++  <meta charset="UTF-8"/>
++  <title>Automation Dashboard</title>
++  <style>
++    body { font-family: system-ui, sans-serif; background:#0f172a; color:#e2e8f0; margin:0; }
++    header { background:#1e293b; padding:1rem 1.5rem; display:flex; justify-content:space-between; align-items:center; }
++    header h1 { font-size:1.1rem; margin:0; }
++    .wrap { display:flex; gap:1rem; padding:1rem 1.5rem; }
++    .panel { background:#1e293b; border-radius:10px; padding:1rem; }
++    .controls { width:320px; }
++    .viewer { flex:1; }
++    label { display:block; font-size:.8rem; margin-top:.6rem; color:#94a3b8; }
++    input { width:100%; padding:.5rem; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; box-sizing:border-box; }
++    button { padding:.55rem .9rem; border:0; border-radius:6px; font-weight:600; cursor:pointer; margin-top:.6rem; }
++    .primary { background:#3b82f6; color:#fff; }
++    .success { background:#22c55e; color:#08260f; }
++    .danger { background:#ef4444; color:#fff; }
++    iframe { width:100%; height:600px; border:1px solid #334155; border-radius:8px; background:#000; }
++    .status { font-size:.85rem; margin-top:.6rem; color:#facc15; }
++    .row { display:flex; gap:.5rem; }
++  </style>
++</head>
++<body>
++<header>
++  <h1>Human-in-the-loop Automation</h1>
++  <button class="danger" onclick="logout()">Logout</button>
++</header>
++<div class="wrap">
++  <div class="panel controls">
++    <label>Target form URL</label>
++    <input id="targetUrl" value="http://localhost:8080/sample-form"/>
++    <label>Data row (0-based)</label>
++    <input id="dataRow" type="number" value="0" min="0"/>
++    <button class="primary" onclick="startFlow()">Start &amp; Fill</button>
++    <div class="status" id="status">Idle</div>
++    <hr style="border-color:#334155; margin:1rem 0;"/>
++    <label>Submit locator type</label>
++    <input id="submitType" value="css"/>
++    <label>Submit locator value</label>
++    <input id="submitValue" value="button[type=submit]"/>
++    <div class="row">
++      <button class="success" onclick="submitFlow()">Verify &amp; Submit</button>
++      <button class="danger" onclick="cancelFlow()">X Cancel</button>
++    </div>
++  </div>
++  <div class="panel viewer">
++    <strong>Live browser:</strong> verify the filled form, then click Submit.
++    <div id="localMsg" style="display:none; padding:1rem; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#facc15;">
++      Running in <b>local mode</b>: a real Chrome window opened on the server machine.
++      Verify the filled form there (or here), then click <b>Verify &amp; Submit</b>.
++    </div>
++    <iframe id="vnc" src="about:blank"></iframe>
++  </div>
++</div>
+
++<script>
++  const token = localStorage.getItem('jwt');
++  if (!token) window.location.href = '/login';
++  let sessionId = null;
+
++  function authHeaders() {
++    return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
++  }
+
++  function logout() {
++    localStorage.removeItem('jwt');
++    window.location.href = '/login';
++  }
+
++  async function startFlow() {
++    setStatus('Starting & filling...');
++    const res = await fetch('/api/flow/start', {
++      method: 'POST',
++      headers: authHeaders(),
++      body: JSON.stringify({
++        targetUrl: document.getElementById('targetUrl').value,
++        dataRow: parseInt(document.getElementById('dataRow').value, 10)
++      })
++    });
++    const data = await res.json();
++    if (!res.ok) { setStatus('Error: ' + (data.error || res.status)); return; }
++    sessionId = data.sessionId;
++    const iframe = document.getElementById('vnc');
++    const localMsg = document.getElementById('localMsg');
++    if (data.vncUrl) {
++      iframe.style.display = 'block';
++      localMsg.style.display = 'none';
++      iframe.src = data.vncUrl;
++    } else {
++      // local mode: no VNC, the browser is a real window on the machine
++      iframe.style.display = 'none';
++      localMsg.style.display = 'block';
++    }
++    setStatus('Status: ' + data.status);
++  }
+
++  async function submitFlow() {
++    if (!sessionId) { setStatus('No active session'); return; }
++    const res = await fetch('/api/flow/' + sessionId + '/submit', {
++      method: 'POST',
++      headers: authHeaders(),
++      body: JSON.stringify({
++        submitLocatorType: document.getElementById('submitType').value,
++        submitLocatorValue: document.getElementById('submitValue').value
++      })
++    });
++    const data = await res.json();
++    setStatus(res.ok ? 'Submitted!' : 'Error: ' + data.error);
++  }
+
++  async function cancelFlow() {
++    if (!sessionId) { setStatus('No active session'); return; }
++    await fetch('/api/flow/' + sessionId, { method: 'DELETE', headers: authHeaders() });
++    document.getElementById('vnc').src = 'about:blank';
++    sessionId = null;
++    setStatus('Cancelled');
++  }
+
++  function setStatus(msg) { document.getElementById('status').textContent = msg; }
++</script>
++</body>
++</html>
+diff --git a/src/main/resources/templates/login.html b/src/main/resources/templates/login.html
+new file mode 100644
+index 0000000..cc748cd
+--- /dev/null
++++ b/src/main/resources/templates/login.html
+@@ -0,0 +1,44 @@
++<!DOCTYPE html>
++<html lang="en" xmlns:th="http://www.thymeleaf.org">
++<head>
++  <meta charset="UTF-8"/>
++  <title>Automation Console</title>
++  <style>
++    body { font-family: system-ui, sans-serif; background:#0f172a; color:#e2e8f0; display:flex; height:100vh; align-items:center; justify-content:center; margin:0; }
++    .card { background:#1e293b; padding:2rem; border-radius:12px; width:320px; box-shadow:0 10px 30px rgba(0,0,0,.4); }
++    h1 { font-size:1.25rem; margin:0 0 1rem; }
++    input { width:100%; padding:.6rem; margin:.4rem 0; border-radius:5px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; box-sizing:border-box; }
++    button { width:100%; padding:.6rem; margin-top:.6rem; border:0; border-radius:5px; background:#3b82f6; color:#fff; font-weight:600; cursor:pointer; }
++    .err { color:#f87171; font-size:.85rem; min-height:1.2rem; }
++  </style>
++</head>
++<body>
++<div class="card">
++  <h1>Automation Console</h1>
++  <input id="username" placeholder="Username" value="operator"/>
++  <input id="password" type="password" placeholder="Password" value="password"/>
++  <button onclick="login()">Sign in</button>
++  <div class="err" id="err"></div>
++</div>
++<script>
++  async function login() {
++    document.getElementById('err').textContent = "";
++    const res = await fetch('/api/auth/login', {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      body: JSON.stringify({
++        username: document.getElementById('username').value,
++        password: document.getElementById('password').value
++      })
++    });
++    if (!res.ok) {
++      document.getElementById('err').textContent = "Invalid credentials";
++      return;
++    }
++    const data = await res.json();
++    localStorage.setItem('jwt', data.token);
++    window.location.href = "/dashboard";
++  }
++</script>
++</body>
++</html>
+diff --git a/src/main/resources/templates/sample-form.html b/src/main/resources/templates/sample-form.html
+new file mode 100644
+index 0000000..5d705aa
+--- /dev/null
++++ b/src/main/resources/templates/sample-form.html
+@@ -0,0 +1,58 @@
++<!DOCTYPE html>
++<html lang="en" xmlns:th="http://www.thymeleaf.org">
++<head>
++  <meta charset="UTF-8"/>
++  <title>Sample Registration Form</title>
++  <style>
++    body { font-family: system-ui, sans-serif; background:#f1f5f9; color:#0f172a; display:flex; justify-content:center; padding:2rem; }
++    .card { background:#fff; padding:2rem; border-radius:12px; width:420px; box-shadow:0 8px 24px rgba(0,0,0,.08); }
++    h1 { font-size:1.3rem; margin:0 0 1rem; }
++    label { display:block; font-size:.85rem; font-weight:600; margin:.7rem 0 .2rem; }
++    input, select, textarea { width:100%; padding:.55rem; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box; font-size:.95rem; }
++    textarea { min-height:80px; resize:vertical; }
++    button { margin-top:1rem; width:100%; padding:.65rem; border:0; border-radius:5px; background:#16a34a; color:#fff; font-weight:600; font-size:1rem; cursor:pointer; }
++    .banner { background:#dcfce7; color:#166534; padding:.6rem; border-radius:6px; margin-bottom:1rem; font-size:.9rem; }
++  </style>
++</head>
++<body>
++<div class="card">
++  <h1>Sample Registration Form</h1>
++  <div class="banner" th:if="${submitted}">Form submitted successfully!</div>
++  <!-- This local form's element locators intentionally match mapping.csv -->
++  <form action="/sample-form" method="post">
++    <!-- csvColumn=firstName, locatorType=id, locatorValue=first-name -->
++    <label for="first-name">First name</label>
++    <input id="first-name" name="firstName" type="text"/>
+
++    <!-- csvColumn=lastName, locatorType=id, locatorValue=last-name -->
++    <label for="last-name">Last name</label>
++    <input id="last-name" name="lastName" type="text"/>
+
++    <!-- csvColumn=email, locatorType=name, locatorValue=email -->
++    <label for="email-field">Email</label>
++    <input id="email-field" name="email" type="email"/>
+
++    <!-- csvColumn=phone, locatorType=css, locatorValue=input.phone-field -->
++    <label for="phone-field">Phone</label>
++    <input id="phone-field" class="phone-field" name="phone" type="text"/>
+
++    <!-- csvColumn=country, locatorType=xpath, locatorValue=//select[@id='country'] -->
++    <label for="country">Country</label>
++    <select id="country" name="country">
++      <option value="">-- select --</option>
++      <option value="UK">UK</option>
++      <option value="USA">USA</option>
++      <option value="India">India</option>
++    </select>
+
++    <!-- csvColumn=comments, locatorType=class, locatorValue=comment-box -->
++    <label for="comments">Comments</label>
++    <textarea id="comments" class="comment-box" name="comments"></textarea>
+
++    <!-- default submit locator used by the flow: css button[type=submit] -->
++    <button type="submit">Submit</button>
++  </form>
++</div>
++</body>
++</html>
+diff --git a/src/test/java/com/example/seleniumdemo/controller/AuthControllerIntegrationTest.java b/src/test/java/com/example/seleniumdemo/controller/AuthControllerIntegrationTest.java
+new file mode 100644
+index 0000000..a89aaad
+--- /dev/null
++++ b/src/test/java/com/example/seleniumdemo/controller/AuthControllerIntegrationTest.java
+@@ -0,0 +1,73 @@
++package com.example.seleniumdemo.controller;
++
++import com.fasterxml.jackson.databind.JsonNode;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import org.junit.jupiter.api.Test;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
++import org.springframework.boot.test.context.SpringBootTest;
++import org.springframework.http.MediaType;
++import org.springframework.test.web.servlet.MockMvc;
++
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
++/**
++ * Integration test for the JWT authentication flow through the real
++ * Spring Security filter chain.
++ */
++@SpringBootTest
++@AutoConfigureMockMvc
++class AuthControllerIntegrationTest {
+
++    @Autowired
++    private MockMvc mockMvc;
+
++    @Autowired
++    private ObjectMapper objectMapper;
+
++    @Test
++    void loginWithValidCredentialsReturnsToken() throws Exception {
++        String body = "{\"username\":\"operator\",\"password\":\"password\"}";
++        var result = mockMvc.perform(post("/api/auth/login")
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(body))
++            .andExpect(status().isOk())
++            .andExpect(jsonPath("$.token").exists())
++            .andExpect(jsonPath("$.tokenType").value("Bearer"))
++            .andReturn();
+
++        JsonNode json = objectMapper.readTree(result.getResponse().getContentAsString());
++        assertThat(json.get("token").asText()).isNotBlank();
++    }
+
++    @Test
++    void loginWithBadCredentialsReturns401() throws Exception {
++        String body = "{\"username\":\"operator\",\"password\":\"wrong\"}";
++        mockMvc.perform(post("/api/auth/login")
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(body))
++            .andExpect(status().isUnauthorized())
++            .andExpect(jsonPath("$.error").value("Invalid credentials"));
++    }
+
++    @Test
++    void loginWithMissingFieldsReturns400() throws Exception {
++        String body = "{\"username\":\"\",\"password\":\"\"}";
++        mockMvc.perform(post("/api/auth/login")
++                .contentType(MediaType.APPLICATION_JSON)
++                .content(body))
++            .andExpect(status().isBadRequest());
++    }
++}
+diff --git a/src/test/java/com/example/seleniumdemo/controller/FlowControllerIntegrationTest.java b/src/test/java/com/example/seleniumdemo/controller/FlowControllerIntegrationTest.java
+new file mode 100644
+index 0000000..11ee9eb
+--- /dev/null
++++ b/src/test/java/com/example/seleniumdemo/controller/FlowControllerIntegrationTest.java
+@@ -0,0 +1,144 @@
++package com.example.seleniumdemo.controller;
++
++import com.example.seleniumdemo.model.FlowSession;
++import com.example.seleniumdemo.security.JwtService;
++import com.example.seleniumdemo.service.SeleniumFlowService;
++import com.example.seleniumdemo.service.SessionRegistry;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.Test;
++import org.mockito.Mockito;
++import org.openqa.selenium.remote.RemoteWebDriver;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
++import org.springframework.boot.test.context.SpringBootTest;
++import org.springframework.boot.test.mock.mockito.MockBean;
++import org.springframework.http.MediaType;
++import org.springframework.test.web.servlet.MockMvc;
++import org.springframework.test.web.servlet.MvcResult;
++
++import static org.mockito.ArgumentMatchers.any;
++import static org.mockito.ArgumentMatchers.anyInt;
++import static org.mockito.ArgumentMatchers.anyString;
++import static org.mockito.ArgumentMatchers.eq;
++import static org.mockito.Mockito.when;
++import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
++/**
++ * Integration test for the flow API. The Selenium/browser layer is mocked so no
++ * real Chrome launches, but the real JWT security filter, async dispatch, and
++ * SessionRegistry are exercised.
++ */
++@SpringBootTest
++@AutoConfigureMockMvc
++class FlowControllerIntegrationTest {
+
++    @Autowired
++    private MockMvc mockMvc;
+
++    @Autowired
++    private JwtService jwtService;
+
++    @Autowired
++    private SessionRegistry registry;
+
++    // Mock only the browser-driving service; keep the real registry.
++    @MockBean
++    private SeleniumFlowService flowService;
+
++    private String bearer;
+
++    @BeforeEach
++    void setup() {
++        bearer = "Bearer " + jwtService.generateToken("operator");
++    }
+
++    @Test
++    void flowApiRequiresAuthentication() throws Exception {
++        mockMvc.perform(post("/api/flow/start")
++                .contentType(MediaType.APPLICATION_JSON)
++                .content("{\"targetUrl\":\"http://localhost:8080/sample-form\",\"dataRow\":0}"))
++            .andExpect(status().isForbidden());
++    }
+
++    @Test
++    void startFlowReturnsSessionForAuthenticatedUser() throws Exception {
++        RemoteWebDriver driver = Mockito.mock(RemoteWebDriver.class);
++        FlowSession session = new FlowSession("sess-1", "operator", driver, null);
++        session.setStatus(FlowSession.Status.AWAITING_SUBMIT);
++        registry.register(session);
+
++        when(flowService.startAndFill(eq("operator"), anyString(), anyInt()))
++            .thenReturn(session);
+
++        MvcResult mvcResult = mockMvc.perform(post("/api/flow/start")
++                .with(user("operator").roles("OPERATOR"))
++                .contentType(MediaType.APPLICATION_JSON)
++                .content("{\"targetUrl\":\"http://localhost:8080/sample-form\",\"dataRow\":0}"))
++            .andExpect(request().asyncStarted())
++            .andReturn();
+
++        mockMvc.perform(asyncDispatch(mvcResult))
++            .andExpect(status().isOk())
++            .andExpect(jsonPath("$.sessionId").value("sess-1"))
++            .andExpect(jsonPath("$.status").value("AWAITING_SUBMIT"));
++    }
+
++    @Test
++    void statusReturns404ForUnknownSession() throws Exception {
++        mockMvc.perform(get("/api/flow/does-not-exist/status")
++                .header("Authorization", bearer))
++            .andExpect(status().isNotFound())
++            .andExpect(jsonPath("$.error").value("Session not found"));
++    }
+
++    @Test
++    void statusReturns404WhenSessionOwnedByAnotherUser() throws Exception {
++        RemoteWebDriver driver = Mockito.mock(RemoteWebDriver.class);
++        FlowSession othersSession = new FlowSession("sess-2", "someone-else", driver, null);
++        registry.register(othersSession);
+
++        mockMvc.perform(get("/api/flow/sess-2/status")
++                .header("Authorization", bearer))
++            .andExpect(status().isNotFound());
++    }
+
++    @Test
++    void submitDelegatesToServiceAndReturnsStatus() throws Exception {
++        RemoteWebDriver driver = Mockito.mock(RemoteWebDriver.class);
++        FlowSession session = new FlowSession("sess-3", "operator", driver, null);
++        session.setStatus(FlowSession.Status.AWAITING_SUBMIT);
++        registry.register(session);
+
++        // when submit is invoked, flip status as the real service would
++        Mockito.doAnswer(inv -> {
++            session.setStatus(FlowSession.Status.SUBMITTED);
++            return null;
++        }).when(flowService).submit(any(), anyString(), anyString());
+
++        mockMvc.perform(post("/api/flow/sess-3/submit")
++                .header("Authorization", bearer)
++                .contentType(MediaType.APPLICATION_JSON)
++                .content("{\"submitLocatorType\":\"css\",\"submitLocatorValue\":\"button[type=submit]\"}"))
++            .andExpect(status().isOk())
++            .andExpect(jsonPath("$.status").value("SUBMITTED"));
++    }
+
++    @Test
++    void cancelReturnsClosed() throws Exception {
++        RemoteWebDriver driver = Mockito.mock(RemoteWebDriver.class);
++        FlowSession session = new FlowSession("sess-4", "operator", driver, null);
++        registry.register(session);
+
++        mockMvc.perform(delete("/api/flow/sess-4")
++                .header("Authorization", bearer))
++            .andExpect(status().isOk())
++            .andExpect(jsonPath("$.status").value("CLOSED"));
++    }
++}
+diff --git a/src/test/java/com/example/seleniumdemo/service/MappingServiceIntegrationTest.java b/src/test/java/com/example/seleniumdemo/service/MappingServiceIntegrationTest.java
+new file mode 100644
+index 0000000..e0fcf64
+--- /dev/null
++++ b/src/test/java/com/example/seleniumdemo/service/MappingServiceIntegrationTest.java
+@@ -0,0 +1,88 @@
++package com.example.seleniumdemo.service;
++
++import com.example.seleniumdemo.model.FieldMapping;
++import org.junit.jupiter.api.Test;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.boot.test.context.SpringBootTest;
+
++import java.util.List;
++import java.util.Map;
+
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
++/**
++ * Integration test for MappingService against the real mapping.csv and data.csv
++ * on the classpath. Verifies parsing, caching behaviour, and locator translation.
++ */
++@SpringBootTest
++class MappingServiceIntegrationTest {
+
++    @Autowired
++    private MappingService mappingService;
+
++    @Test
++    void loadsAllMappingsFromCsv() {
++        List<FieldMapping> mappings = mappingService.loadMappings();
++        assertThat(mappings).hasSize(6);
++        assertThat(mappings)
++            .extracting(FieldMapping::csvColumn)
++            .containsExactly("firstName", "lastName", "email", "phone", "country", "comments");
++    }
+
++    @Test
++    void mapsLocatorTypesToSeleniumBy() {
++        List<FieldMapping> mappings = mappingService.loadMappings();
++        FieldMapping firstName = mappings.get(0);
++        assertThat(firstName.locatorType()).isEqualTo("id");
++        assertThat(firstName.toBy().toString()).contains("first-name");
+
++        FieldMapping country = mappings.stream()
++            .filter(m -> m.csvColumn().equals("country"))
++            .findFirst().orElseThrow();
++        assertThat(country.locatorType()).isEqualTo("xpath");
++        assertThat(country.toBy().toString()).contains("country");
++    }
+
++    @Test
++    void unsupportedLocatorTypeThrows() {
++        FieldMapping bad = new FieldMapping("col", "bogus", "value");
++        assertThatThrownBy(bad::toBy)
++            .isInstanceOf(IllegalArgumentException.class)
++            .hasMessageContaining("Unsupported locator type");
++    }
+
++    @Test
++    void loadsFormDataRows() {
++        List<Map<String, String>> rows = mappingService.loadFormData();
++        assertThat(rows).hasSize(3);
++        assertThat(rows.get(0))
++            .containsEntry("firstName", "Ada")
++            .containsEntry("lastName", "Lovelace")
++            .containsEntry("email", "ada@example.com");
++    }
+
++    @Test
++    void getRowReturnsRequestedRow() {
++        Map<String, String> row = mappingService.getRow(2);
++        assertThat(row).containsEntry("firstName", "Grace");
++    }
+
++    @Test
++    void getRowOutOfRangeThrows() {
++        assertThatThrownBy(() -> mappingService.getRow(99))
++            .isInstanceOf(IllegalArgumentException.class)
++            .hasMessageContaining("out of range");
++    }
+
++    @Test
++    void mappingsAreCachedAcrossCalls() {
++        List<FieldMapping> first = mappingService.loadMappings();
++        List<FieldMapping> second = mappingService.loadMappings();
++        // Cacheable returns the same cached instance
++        assertThat(first).isSameAs(second);
++    }
++}
