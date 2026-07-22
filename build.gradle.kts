@@ -1,13 +1,17 @@
 // GRADLE PLUGINS
 plugins {
     java
-    id("org.springframework.boot") version "3.3.2"
-    id("io.spring.dependency-management") version "1.1.7"
+    id("org.springframework.boot") version property("springBootPluginVersion")
+    id("io.spring.dependency-management") version property("dependencyManagementPluginVersion")
+}
+
+repositories {
+    mavenCentral()
 }
 
 // PROJECT LANGUAGE
-java.sourceCompatibility = JavaVersion.VERSION_17
-java.targetCompatibility = JavaVersion.VERSION_17
+java.sourceCompatibility = JavaVersion.VERSION_21
+java.targetCompatibility = JavaVersion.VERSION_21
 
 // DEPENDENCY MANAGEMENT
 dependencyManagement {
