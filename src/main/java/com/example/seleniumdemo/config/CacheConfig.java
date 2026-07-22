@@ -8,3 +8,17 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class CacheConfig implements CachingConfigurer {
+
+    public static final String MAPPINGS_CACHE = "fieldMappings";
+    public static final String FORM_DATA_CACHE = "formData";
+
+    /**
+     * Simple in-memory cache. Swap ConcurrentMapCacheManager for Caffeine or
+     * Redis in production for eviction policies / distributed caching.
+     */
+    @Bean
+    @Override
+    public CacheManager cacheManager() {
+        return new ConcurrentMapCacheManager(MAPPINGS_CACHE, FORM_DATA_CACHE);
+    }
+}
