@@ -23,3 +23,35 @@
     <!-- csvColumn=firstName, locatorType=id, locatorValue=first-name -->
     <label for="first-name">First name</label>
     <input id="first-name" name="firstName" type="text"/>
+
+    <!-- csvColumn=lastName, locatorType=id, locatorValue=last-name -->
+    <label for="last-name">Last name</label>
+    <input id="last-name" name="lastName" type="text"/>
+
+    <!-- csvColumn=email, locatorType=name, locatorValue=email -->
+    <label for="email-field">Email</label>
+    <input id="email-field" name="email" type="email"/>
+
+    <!-- csvColumn=phone, locatorType=css, locatorValue=input.phone-field -->
+    <label for="phone-field">Phone</label>
+    <input id="phone-field" class="phone-field" name="phone" type="text"/>
+
+    <!-- csvColumn=country, locatorType=xpath, locatorValue=//select[@id='country'] -->
+    <label for="country">Country</label>
+    <select id="country" name="country">
+      <option value="">-- select --</option>
+      <option value="UK">UK</option>
+      <option value="USA">USA</option>
+      <option value="India">India</option>
+    </select>
+
+    <!-- csvColumn=comments, locatorType=class, locatorValue=comment-box -->
+    <label for="comments">Comments</label>
+    <textarea id="comments" class="comment-box" name="comments"></textarea>
+
+    <!-- default submit locator used by the flow: css button[type=submit] -->
+    <button type="submit">Submit</button>
+  </form>
+</div>
+</body>
+</html>

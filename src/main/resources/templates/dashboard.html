@@ -54,3 +54,71 @@
     <iframe id="vnc" src="about:blank"></iframe>
   </div>
 </div>
+
+<script>
+  const token = localStorage.getItem('jwt');
+  if (!token) window.location.href = '/login';
+  let sessionId = null;
+
+  function authHeaders() {
+    return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+  }
+
+  function logout() {
+    localStorage.removeItem('jwt');
+    window.location.href = '/login';
+  }
+
+  async function startFlow() {
+    setStatus('Starting & filling...');
+    const res = await fetch('/api/flow/start', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        targetUrl: document.getElementById('targetUrl').value,
+        dataRow: parseInt(document.getElementById('dataRow').value, 10)
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) { setStatus('Error: ' + (data.error || res.status)); return; }
+    sessionId = data.sessionId;
+    const iframe = document.getElementById('vnc');
+    const localMsg = document.getElementById('localMsg');
+    if (data.vncUrl) {
+      iframe.style.display = 'block';
+      localMsg.style.display = 'none';
+      iframe.src = data.vncUrl;
+    } else {
+      // local mode: no VNC, the browser is a real window on the machine
+      iframe.style.display = 'none';
+      localMsg.style.display = 'block';
+    }
+    setStatus('Status: ' + data.status);
+  }
+
+  async function submitFlow() {
+    if (!sessionId) { setStatus('No active session'); return; }
+    const res = await fetch('/api/flow/' + sessionId + '/submit', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        submitLocatorType: document.getElementById('submitType').value,
+        submitLocatorValue: document.getElementById('submitValue').value
+      })
+    });
+    const data = await res.json();
+    setStatus(res.ok ? 'Submitted!' : 'Error: ' + data.error);
+  }
+
+  async function cancelFlow() {
+    if (!sessionId) { setStatus('No active session'); return; }
+    await fetch('/api/flow/' + sessionId, { method: 'DELETE', headers: authHeaders() });
+    document.getElementById('vnc').src = 'about:blank';
+    sessionId = null;
+    setStatus('Cancelled');
+  }
+
+  function setStatus(msg) { document.getElementById('status').textContent = msg; }
+</script>
+</body>
+</html>
