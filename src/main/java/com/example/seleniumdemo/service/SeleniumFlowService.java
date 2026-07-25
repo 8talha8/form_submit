@@ -3,6 +3,7 @@ package com.example.seleniumdemo.service;
 import com.example.seleniumdemo.model.FieldMapping;
 import com.example.seleniumdemo.model.FlowSession;
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
@@ -15,6 +16,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.lang.reflect.Method;
+import java.net.URI;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
@@ -73,11 +76,27 @@ public class SeleniumFlowService {
         try {
             registry.register(session);
             log.info("Session {} started for owner={} vnc={}", sessionId, owner, vncUrl);
+            grantGeolocationPermission(driver, extractOrigin(targetUrl), sessionId);
             driver.get(targetUrl);
 
             waitForLoginPage(driver, targetUrl, sessionId);
-            fillFields(driver, mappings, data, sessionId);
+            fillLoginCredentials(driver, data, sessionId);
             autoSubmitIfNeeded(driver, targetUrl, sessionId);
+            waitForPostLoginNavigation(driver, sessionId);
+            dismissBlockingModal(driver, sessionId);
+
+            String postLoginUrl = resolvePostLoginUrl(targetUrl);
+            if (!postLoginUrl.equals(targetUrl) && !driver.getCurrentUrl().contains("personal_profile.php")) {
+                log.info("session={} navigating to post-login target {}", sessionId, postLoginUrl);
+                driver.get(postLoginUrl);
+            }
+
+            if (driver.getCurrentUrl().contains("Dashboard") || driver.getCurrentUrl().contains("dashboard")) {
+                navigateToPersonalProfileFromDashboard(driver, sessionId);
+            }
+
+            waitForPersonalProfilePage(driver, sessionId);
+            fillFields(driver, mappings, data, sessionId);
             session.setStatus(FlowSession.Status.AWAITING_SUBMIT);
         } catch (Exception e) {
             // Fatal error during driver creation/navigation: clean up and rethrow.
@@ -88,6 +107,26 @@ public class SeleniumFlowService {
         return session;
     }
 
+    private void fillLoginCredentials(RemoteWebDriver driver, Map<String, String> data, String sessionId) {
+        fillLoginField(driver, "StudentEmail", data.get("email"), sessionId, "email");
+        fillLoginField(driver, "StudentPassword", data.get("password"), sessionId, "password");
+    }
+
+    private void fillLoginField(RemoteWebDriver driver, String fieldId, String value, String sessionId, String columnName) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        try {
+            WebElement element = driver.findElement(By.id(fieldId));
+            element.clear();
+            element.sendKeys(value);
+            log.info("session={} filled login field {} from column '{}'", sessionId, fieldId, columnName);
+        } catch (Exception e) {
+            log.warn("session={} could not fill login field '{}' from column '{}': {}",
+                sessionId, fieldId, columnName, e.getMessage());
+        }
+    }
+
     private void fillFields(RemoteWebDriver driver, List<FieldMapping> mappings, Map<String, String> data, String sessionId) {
         for (FieldMapping mapping : mappings) {
             String value = data.get(mapping.csvColumn());
@@ -96,7 +135,11 @@ public class SeleniumFlowService {
                 continue;
             }
             try {
-                WebElement element = driver.findElement(mapping.toBy());
+                WebElement element = findElementWithFallback(driver, mapping, sessionId);
+                if (element == null) {
+                    continue;
+                }
+
                 String tag = element.getTagName();
                 String type = element.getAttribute("type");
 
@@ -137,6 +180,45 @@ public class SeleniumFlowService {
         }
     }
 
+    private WebElement findElementWithFallback(RemoteWebDriver driver, FieldMapping mapping, String sessionId) {
+        try {
+            return driver.findElement(mapping.toBy());
+        } catch (Exception first) {
+            String locatorValue = mapping.locatorValue();
+            String fallback = locatorValue;
+            if (locatorValue != null && !locatorValue.isBlank()) {
+                fallback = Character.toLowerCase(locatorValue.charAt(0)) + locatorValue.substring(1);
+            }
+            try {
+                return driver.findElement(By.cssSelector("[name='" + locatorValue + "']"));
+            } catch (Exception ignored) {
+                try {
+                    return driver.findElement(By.cssSelector("[name='" + fallback + "']"));
+                } catch (Exception ignored2) {
+                    log.debug("session={} no element found for locator {}:{}", sessionId, mapping.locatorType(), mapping.locatorValue());
+                    return null;
+                }
+            }
+        }
+    }
+
+    private void grantGeolocationPermission(RemoteWebDriver driver, String origin, String sessionId) {
+        if (origin == null || origin.isBlank()) {
+            return;
+        }
+        try {
+            Map<String, Object> params = new HashMap<>();
+            params.put("origin", origin);
+            params.put("permission", Map.of("name", "geolocation"));
+            params.put("setting", "granted");
+            Method method = driver.getClass().getMethod("executeCdpCommand", String.class, Map.class);
+            method.invoke(driver, "Browser.setPermission", params);
+            log.info("session={} granted geolocation permission for {}", sessionId, origin);
+        } catch (Exception e) {
+            log.debug("session={} could not pre-grant geolocation permission for {}: {}", sessionId, origin, e.getMessage());
+        }
+    }
+
     private void waitForLoginPage(RemoteWebDriver driver, String targetUrl, String sessionId) {
         try {
             WebDriverWait wait = new WebDriverWait(driver, java.time.Duration.ofSeconds(15));
@@ -170,6 +252,82 @@ public class SeleniumFlowService {
         }
     }
 
+    String resolvePostLoginUrl(String targetUrl) {
+        if (targetUrl == null || targetUrl.isBlank()) {
+            return targetUrl;
+        }
+
+        String trimmed = targetUrl.trim();
+        if (trimmed.contains("hmtcampus360v2.net")) {
+            return "https://hmtcampus360v2.net/AdminPanel/Admission_new/personal_profile.php";
+        }
+        return trimmed;
+    }
+
+    private void waitForPostLoginNavigation(RemoteWebDriver driver, String sessionId) {
+        try {
+            WebDriverWait wait = new WebDriverWait(driver, java.time.Duration.ofSeconds(20));
+            wait.until(webDriver -> {
+                String currentUrl = webDriver.getCurrentUrl();
+                return currentUrl != null && (currentUrl.contains("personal_profile.php") || currentUrl.contains("Dashboard") || currentUrl.contains("dashboard"));
+            });
+            log.info("session={} post-login navigation reached {}", sessionId, driver.getCurrentUrl());
+        } catch (Exception e) {
+            log.warn("session={} did not reach a post-login page yet: {}", sessionId, e.getMessage());
+        }
+    }
+
+    private void dismissBlockingModal(RemoteWebDriver driver, String sessionId) {
+        try {
+            JavascriptExecutor js = driver;
+            js.executeScript("document.querySelectorAll('#feedbackModal, .modal').forEach(el => el.remove());");
+            log.debug("session={} dismissed blocking modal overlays", sessionId);
+        } catch (Exception e) {
+            log.debug("session={} no blocking modal to dismiss: {}", sessionId, e.getMessage());
+        }
+    }
+
+    private void navigateToPersonalProfileFromDashboard(RemoteWebDriver driver, String sessionId) {
+        try {
+            List<WebElement> hrefLinks = driver.findElements(By.cssSelector("a[href*='personal_profile.php']"));
+            if (!hrefLinks.isEmpty()) {
+                hrefLinks.get(0).click();
+                log.info("session={} clicked direct personal profile link", sessionId);
+                return;
+            }
+
+            List<WebElement> links = driver.findElements(By.tagName("a"));
+            for (WebElement link : links) {
+                String text = link.getText();
+                if (text != null && (text.contains("Create / Update") || text.contains("Create/Update") || text.contains("Create") && text.contains("Update"))) {
+                    link.click();
+                    log.info("session={} clicked dashboard admissions link", sessionId);
+                    return;
+                }
+            }
+
+            WebElement profileLink = driver.findElement(By.partialLinkText("Create / Update"));
+            profileLink.click();
+            log.info("session={} clicked dashboard admissions link via partial link", sessionId);
+        } catch (Exception e) {
+            log.warn("session={} could not navigate from dashboard to personal profile: {}", sessionId, e.getMessage());
+        }
+    }
+
+    private void waitForPersonalProfilePage(RemoteWebDriver driver, String sessionId) {
+        try {
+            WebDriverWait wait = new WebDriverWait(driver, java.time.Duration.ofSeconds(25));
+            wait.until(ExpectedConditions.or(
+                ExpectedConditions.presenceOfElementLocated(By.id("FirstName")),
+                ExpectedConditions.presenceOfElementLocated(By.cssSelector("input[name='FirstName']")),
+                ExpectedConditions.presenceOfElementLocated(By.xpath("//h5[contains(., 'PERSONAL INFORMATION')]"))
+            ));
+            log.info("session={} loaded personal profile form", sessionId);
+        } catch (Exception e) {
+            log.warn("session={} did not detect personal profile form page: {}", sessionId, e.getMessage());
+        }
+    }
+
     /** Called after the human has visually verified the filled form. */
     public void submit(FlowSession session, String submitLocatorType, String submitLocatorValue) {
         FieldMapping submit = new FieldMapping("submit", submitLocatorType, submitLocatorValue);
@@ -194,6 +352,10 @@ public class SeleniumFlowService {
             // Selenium Manager (built into Selenium 4.6+) downloads chromedriver automatically.
             options.addArguments("--start-maximized");
             options.addArguments("--remote-allow-origins=*");
+            options.setExperimentalOption("prefs", Map.of(
+                "profile.default_content_setting_values.geolocation", 1,
+                "profile.content_settings.exceptions.geolocation.*.setting", 1
+            ));
             log.info("Starting LOCAL Chrome browser (visible window on this machine)");
             return new ChromeDriver(options);
         }
@@ -208,6 +370,21 @@ public class SeleniumFlowService {
         }
         URL url = java.net.URI.create(seleniumUrl).toURL();
         return new RemoteWebDriver(url, options);
+    }
+
+    String extractOrigin(String url) {
+        if (url == null || url.isBlank()) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(url);
+            if (uri.getScheme() == null || uri.getHost() == null) {
+                return null;
+            }
+            return uri.getScheme() + "://" + uri.getHost();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /** Local mode has no VNC url; the browser is visible directly on the machine. */
