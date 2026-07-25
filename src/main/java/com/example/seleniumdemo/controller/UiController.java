@@ -33,12 +33,6 @@ public class UiController {
         return "sample-form";
     }
 
-    @GetMapping("/sample-form-login")
-    public String sampleFormLogin() {
-        log.info("Serving sample form login page");
-        return "sample-form-login";
-    }
-
     @PostMapping("/sample-form")
     public String sampleFormSubmit(Model model) {
         log.info("Sample form submitted");

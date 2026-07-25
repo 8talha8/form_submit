@@ -55,11 +55,11 @@ class FlowLoginNavigationTest {
         when(flowService.startAndFill(eq("operator"), anyString(), anyInt()))
             .thenReturn(session);
 
-        // Start the flow targeting the login page (which auto-submits when filled)
+        // Start the flow targeting the real Campus360 login page.
         MvcResult mvcResult = mockMvc.perform(post("/api/flow/start")
                 .with(user("operator").roles("OPERATOR"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"targetUrl\":\"http://localhost:8080/sample-form-login\",\"dataRow\":0}"))
+                .content("{\"targetUrl\":\"https://hmtcampus360v2.net/\",\"dataRow\":0}"))
             .andExpect(request().asyncStarted())
             .andReturn();
 

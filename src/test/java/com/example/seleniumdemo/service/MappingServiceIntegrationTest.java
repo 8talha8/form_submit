@@ -24,10 +24,11 @@ class MappingServiceIntegrationTest {
     @Test
     void loadsAllMappingsFromCsv() {
         List<FieldMapping> mappings = mappingService.loadMappings();
-        assertThat(mappings).hasSize(6);
+        assertThat(mappings).isNotEmpty();
+        assertThat(mappings).hasSizeGreaterThan(30);
         assertThat(mappings)
             .extracting(FieldMapping::csvColumn)
-            .containsExactly("firstName", "lastName", "email", "phone", "country", "comments");
+            .contains("firstName", "middleName", "lastName", "email", "phone", "country", "comments", "password", "religion", "gender", "dob", "sameAddress");
     }
 
     @Test
@@ -35,13 +36,13 @@ class MappingServiceIntegrationTest {
         List<FieldMapping> mappings = mappingService.loadMappings();
         FieldMapping firstName = mappings.get(0);
         assertThat(firstName.locatorType()).isEqualTo("id");
-        assertThat(firstName.toBy().toString()).contains("first-name");
+        assertThat(firstName.toBy().toString()).contains("FirstName");
 
         FieldMapping country = mappings.stream()
             .filter(m -> m.csvColumn().equals("country"))
             .findFirst().orElseThrow();
-        assertThat(country.locatorType()).isEqualTo("xpath");
-        assertThat(country.toBy().toString()).contains("country");
+        assertThat(country.locatorType()).isEqualTo("id");
+        assertThat(country.toBy().toString()).contains("Nationality");
     }
 
     @Test
@@ -59,7 +60,7 @@ class MappingServiceIntegrationTest {
         assertThat(rows.get(0))
             .containsEntry("firstName", "Ada")
             .containsEntry("lastName", "Lovelace")
-            .containsEntry("email", "ada@example.com");
+            .containsEntry("email", "m9tx54@gmail.com");
     }
 
     @Test

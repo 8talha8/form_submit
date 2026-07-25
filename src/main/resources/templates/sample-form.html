@@ -18,8 +18,8 @@
 <div class="card">
   <h1>Sample Registration Form</h1>
   <div class="banner" th:if="${submitted}">Form submitted successfully!</div>
-  <!-- This local form's element locators intentionally match mapping.csv -->
-  <form action="/sample-form" method="post">
+  <!-- This form is now a redirect shell for the real Campus360 admission page -->
+  <form action="https://hmtcampus360v2.net/AdminPanel/Admission_new/personal_profile.php" method="post">
     <!-- csvColumn=firstName, locatorType=id, locatorValue=first-name -->
     <label for="first-name">First name</label>
     <input id="first-name" name="firstName" type="text"/>

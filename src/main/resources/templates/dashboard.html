@@ -30,7 +30,7 @@
 <div class="wrap">
   <div class="panel controls">
     <label>Target form URL</label>
-    <input id="targetUrl" value="http://localhost:8080/sample-form-login"/>
+    <input id="targetUrl" value="https://hmtcampus360v2.net/"/>
     <label>Data row (0-based)</label>
     <input id="dataRow" type="number" value="0" min="0"/>
     <button class="primary" onclick="startFlow()">Start &amp; Fill</button>
@@ -39,7 +39,7 @@
     <label>Submit locator type</label>
     <input id="submitType" value="css"/>
     <label>Submit locator value</label>
-    <input id="submitValue" value="button[type=submit]"/>
+    <input id="submitValue" value="input#StudentLogin"/>
     <div class="row">
       <button class="success" onclick="submitFlow()">Verify &amp; Submit</button>
       <button class="danger" onclick="cancelFlow()">X Cancel</button>

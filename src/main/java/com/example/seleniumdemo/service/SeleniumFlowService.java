@@ -75,13 +75,9 @@ public class SeleniumFlowService {
             log.info("Session {} started for owner={} vnc={}", sessionId, owner, vncUrl);
             driver.get(targetUrl);
 
+            waitForLoginPage(driver, targetUrl, sessionId);
             fillFields(driver, mappings, data, sessionId);
-
-            if (targetUrl.contains("/sample-form-login")) {
-                waitForSampleFormPage(driver, sessionId);
-                fillFields(driver, mappings, data, sessionId);
-            }
-
+            autoSubmitIfNeeded(driver, targetUrl, sessionId);
             session.setStatus(FlowSession.Status.AWAITING_SUBMIT);
         } catch (Exception e) {
             // Fatal error during driver creation/navigation: clean up and rethrow.
@@ -141,14 +137,36 @@ public class SeleniumFlowService {
         }
     }
 
-    private void waitForSampleFormPage(RemoteWebDriver driver, String sessionId) {
+    private void waitForLoginPage(RemoteWebDriver driver, String targetUrl, String sessionId) {
         try {
-            WebDriverWait wait = new WebDriverWait(driver, java.time.Duration.ofSeconds(10));
-            wait.until(webDriver -> webDriver.getCurrentUrl().contains("/sample-form"));
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("first-name")));
-            log.info("session={} detected /sample-form and first-name field is present", sessionId);
+            WebDriverWait wait = new WebDriverWait(driver, java.time.Duration.ofSeconds(15));
+            if (targetUrl.contains("Campus360") || targetUrl.contains("hmtcampus360v2.net")) {
+                wait.until(ExpectedConditions.presenceOfElementLocated(By.id("StudentEmail")));
+                wait.until(ExpectedConditions.presenceOfElementLocated(By.id("StudentPassword")));
+                log.info("session={} detected Campus360 login page", sessionId);
+            } else {
+                wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName("form")));
+                log.info("session={} detected login form page", sessionId);
+            }
         } catch (Exception e) {
-            log.warn("session={} did not fully load /sample-form after login auto-submit: {}", sessionId, e.getMessage());
+            log.warn("session={} did not detect login page at targetUrl='{}': {}", sessionId, targetUrl, e.getMessage());
+        }
+    }
+
+    private void autoSubmitIfNeeded(RemoteWebDriver driver, String targetUrl, String sessionId) {
+        try {
+            if (targetUrl.contains("Campus360") || targetUrl.contains("hmtcampus360v2.net")) {
+                WebElement loginButton = driver.findElement(By.id("StudentLogin"));
+                loginButton.click();
+                log.info("session={} clicked Campus360 login button", sessionId);
+                return;
+            }
+
+            WebElement form = driver.findElement(By.tagName("form"));
+            form.submit();
+            log.info("session={} submitted generic form", sessionId);
+        } catch (Exception e) {
+            log.warn("session={} could not auto-submit login form: {}", sessionId, e.getMessage());
         }
     }
 
