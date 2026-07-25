@@ -96,6 +96,7 @@ public class SeleniumFlowService {
             }
 
             waitForPersonalProfilePage(driver, sessionId);
+            waitForFormControlsToBeInteractive(driver, sessionId);
             fillFields(driver, mappings, data, sessionId);
             session.setStatus(FlowSession.Status.AWAITING_SUBMIT);
         } catch (Exception e) {
@@ -145,12 +146,7 @@ public class SeleniumFlowService {
 
                 if ("select".equalsIgnoreCase(tag)) {
                     try {
-                        Select sel = new Select(element);
-                        try {
-                            sel.selectByVisibleText(value);
-                        } catch (Exception ex) {
-                            sel.selectByValue(value);
-                        }
+                        selectDropdownValue(driver, element, value, sessionId, mapping.csvColumn(), mapping.locatorType(), mapping.locatorValue());
                     } catch (Exception ex) {
                         log.warn("session={} could not select value='{}' for column='{}' locator={}:{} error={}",
                             sessionId, value, mapping.csvColumn(), mapping.locatorType(), mapping.locatorValue(), ex.getMessage());
@@ -177,6 +173,86 @@ public class SeleniumFlowService {
                 log.warn("session={} could not fill column='{}' locator={}:{} error={}",
                     sessionId, mapping.csvColumn(), mapping.locatorType(), mapping.locatorValue(), e.getMessage());
             }
+        }
+    }
+
+    private void selectDropdownValue(RemoteWebDriver driver, WebElement element, String value, String sessionId, String csvColumn, String locatorType, String locatorValue) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+
+        String target = value.trim();
+        for (int attempt = 0; attempt < 5; attempt++) {
+            try {
+                Select select = new Select(element);
+                try {
+                    select.selectByVisibleText(target);
+                    if (isDropdownSelectionPresent(select, target)) {
+                        return;
+                    }
+                } catch (Exception ignored) {
+                }
+
+                try {
+                    select.selectByValue(target);
+                    if (isDropdownSelectionPresent(select, target)) {
+                        return;
+                    }
+                } catch (Exception ignored) {
+                }
+
+                if (trySelectViaJavascript(driver, element, target)) {
+                    return;
+                }
+            } catch (Exception ignored) {
+            }
+
+            try {
+                Thread.sleep(250);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        log.warn("session={} could not select dropdown value='{}' for column='{}' locator={}:{}",
+            sessionId, value, csvColumn, locatorType, locatorValue);
+    }
+
+    private boolean isDropdownSelectionPresent(Select select, String value) {
+        try {
+            WebElement selected = select.getFirstSelectedOption();
+            String selectedText = selected.getText();
+            String selectedValue = selected.getAttribute("value");
+            String target = value.trim().toLowerCase();
+            return (selectedText != null && selectedText.trim().toLowerCase().contains(target))
+                || (selectedValue != null && selectedValue.trim().toLowerCase().contains(target));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean trySelectViaJavascript(RemoteWebDriver driver, WebElement element, String value) {
+        try {
+            Object result = ((JavascriptExecutor) driver).executeScript(
+                "var select = arguments[0]; var target = arguments[1].trim().toLowerCase(); " +
+                    "for (var i = 0; i < select.options.length; i++) { " +
+                    "var option = select.options[i]; " +
+                    "var text = (option.textContent || '').trim().toLowerCase(); " +
+                    "var optionValue = (option.value || '').trim().toLowerCase(); " +
+                    "if (text === target || optionValue === target || text.indexOf(target) !== -1 || optionValue.indexOf(target) !== -1) { " +
+                    "select.value = option.value; " +
+                    "select.dispatchEvent(new Event('change', { bubbles: true })); " +
+                    "return true; " +
+                    "} " +
+                    "} " +
+                    "return false;",
+                element,
+                value
+            );
+            return Boolean.TRUE.equals(result);
+        } catch (Exception e) {
+            return false;
         }
     }
 
@@ -325,6 +401,20 @@ public class SeleniumFlowService {
             log.info("session={} loaded personal profile form", sessionId);
         } catch (Exception e) {
             log.warn("session={} did not detect personal profile form page: {}", sessionId, e.getMessage());
+        }
+    }
+
+    private void waitForFormControlsToBeInteractive(RemoteWebDriver driver, String sessionId) {
+        try {
+            WebDriverWait wait = new WebDriverWait(driver, java.time.Duration.ofSeconds(20));
+            wait.until(ExpectedConditions.and(
+                ExpectedConditions.elementToBeClickable(By.id("FirstName")),
+                ExpectedConditions.elementToBeClickable(By.id("Religion")),
+                ExpectedConditions.presenceOfElementLocated(By.id("Gender"))
+            ));
+            log.info("session={} form controls are interactive", sessionId);
+        } catch (Exception e) {
+            log.debug("session={} form controls were not fully interactive yet: {}", sessionId, e.getMessage());
         }
     }
 

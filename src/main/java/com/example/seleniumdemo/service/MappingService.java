@@ -1,11 +1,9 @@
 package com.example.seleniumdemo.service;
 
-import com.example.seleniumdemo.config.CacheConfig;
 import com.example.seleniumdemo.model.FieldMapping;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
@@ -33,7 +31,6 @@ public class MappingService {
         this.resourceLoader = resourceLoader;
     }
 
-    @Cacheable(CacheConfig.MAPPINGS_CACHE)
     public List<FieldMapping> loadMappings() {
         Resource resource = resourceLoader.getResource("classpath:mapping.csv");
         List<FieldMapping> mappings = new ArrayList<>();
@@ -54,7 +51,6 @@ public class MappingService {
     }
 
     /** Returns each data row as a column->value map. */
-    @Cacheable(CacheConfig.FORM_DATA_CACHE)
     public List<Map<String, String>> loadFormData() {
         Resource resource = resourceLoader.getResource("classpath:data.csv");
         List<Map<String, String>> rows = new ArrayList<>();

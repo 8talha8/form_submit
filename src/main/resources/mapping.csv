@@ -54,3 +54,17 @@ bank,id,Bank
 bankAccNo,id,BankAccNo
 ifsc,id,IFSC
 micr,id,MICR
+otherReligion,id,OtherReligion
+otherCaste,id,OtherCaste
+otherSubCaste,id,OtherSubCaste
+docType,id,DocType
+uploadDocument,id,UploadDocument
+photo,id,Photo
+signature,id,Sign
+seatNo,id,SeatNo
+examBody,id,ExamBody
+passingMonthYear,id,PassingMonthYear
+obtainedMarks,id,ObtainedMarks
+totalMarks,id,TotalMarks
+percentage,id,Percentage
+exam,id,name,Exam[]

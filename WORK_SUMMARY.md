@@ -1,39 +1,44 @@
 # Selenium Form Fill Project Summary
 
 ## Current status
-- Spring Boot application restored and running from `D:\work\form_submit`.
-- Added `sample-form-login.html` as an auto-submitting login page.
-- Added route `/sample-form-login` in `UiController`.
-- Dashboard default target set to `http://localhost:8080/sample-form-login`.
-- Added logging support in `UiController` with SLF4J.
-- Improved `SeleniumFlowService` to:
-  - handle login page redirect from `/sample-form-login` to `/sample-form`
-  - wait for `/sample-form` and the `first-name` field before refilling
-  - support select and checkbox field filling with safer fallback behavior
-- Added integration tests:
-  - `SampleFormLoginTemplateTest` verifies the login template HTML
-  - `FlowLoginNavigationTest` simulates start-and-fill navigation from login to sample form
-- Committed the current changes in git with message: `Add sample-form-login flow, fix UiController logging, improve Selenium login redirect handling, and add integration tests`
+- Spring Boot application is running locally from `D:\work\form_submit`.
+- The Selenium flow now reaches the live Campus360 admissions profile page after login.
+- The automation now:
+  - handles the login flow and post-login navigation,
+  - dismisses blocking overlays when present,
+  - waits for the profile form to become interactive before filling,
+  - uses more resilient dropdown selection logic,
+  - and reads the latest mapping/data values from CSV files without stale in-memory caching.
+- The form-fill flow leaves the browser open for manual verification before submission.
+- The current implementation is focused on the real Campus360 profile form rather than the earlier demo page.
+
+## What has been completed
+- Restored the Spring Boot app and verified the local server responds on port `8080`.
+- Updated `SeleniumFlowService` to support:
+  - Campus360 login → dashboard → personal profile navigation,
+  - geolocation permission handling,
+  - dynamic waiting for profile fields and selects,
+  - fallback selection behavior for dropdowns,
+  - and safer field population for text inputs and checkboxes.
+- Extended the CSV inputs in `src/main/resources/data.csv` and mappings in `src/main/resources/mapping.csv` to cover more live-page fields.
+- Investigated the page behavior and confirmed that the observed popups are triggered by the target site’s own JavaScript/validation behavior rather than by the Selenium app itself.
 
 ## Key files
-- `src/main/java/com/example/seleniumdemo/controller/UiController.java`
 - `src/main/java/com/example/seleniumdemo/service/SeleniumFlowService.java`
-- `src/main/resources/templates/sample-form-login.html`
+- `src/main/java/com/example/seleniumdemo/service/MappingService.java`
+- `src/main/resources/data.csv`
+- `src/main/resources/mapping.csv`
 - `src/main/resources/templates/dashboard.html`
-- `src/test/java/com/example/seleniumdemo/controller/SampleFormLoginTemplateTest.java`
-- `src/test/java/com/example/seleniumdemo/controller/FlowLoginNavigationTest.java`
 
 ## Notes
-- The current implementation uses local Chrome mode by default (`app.selenium.mode: local`).
-- Local mode opens a browser window on the host machine, not inside the dashboard iframe.
-- Docker/Selenoid can be explored later to provide VNC/live browser view inside the same page.
+- The current runtime uses local Chrome mode by default (`app.selenium.mode: local`).
+- The automation is currently aimed at the live Campus360 profile form and is leaving the browser open for human review.
+- Some remaining form fields may still require additional field-map tuning if the live form changes or introduces new dynamic controls.
 
-## Next steps for Docker / same-page view
-1. Configure `app.selenium.mode: remote`.
-2. Set `app.selenium.remote-url` to a Selenium Grid/Selenoid endpoint.
-3. Enable `app.selenium.enable-vnc: true` and set `app.selenium.selenoid-ui-base` to the Selenoid UI URL.
-4. Start Selenoid/docker-compose and verify the dashboard receives `vncUrl` from `SeleniumFlowService`.
-5. Ensure the dashboard iframe can render the VNC session.
+## Next steps
+1. Continue validating the live form fill against the actual Campus360 page.
+2. Tune any remaining field mappings or selectors for fields that still require manual adjustment.
+3. Optionally add more robust handling for additional dynamic selects or upload controls if the live form requires them.
 
 ## Useful commands
 ```powershell
