@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Sample Login (auto-submit)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background:#f1f5f9; color:#0f172a; display:flex; justify-content:center; padding:2rem; }
+    .card { background:#fff; padding:2rem; border-radius:12px; width:420px; box-shadow:0 8px 24px rgba(0,0,0,.08); }
+    h1 { font-size:1.3rem; margin:0 0 1rem; }
+    label { display:block; font-size:.85rem; font-weight:600; margin:.7rem 0 .2rem; }
+    input { width:100%; padding:.55rem; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box; font-size:.95rem; }
+    button { margin-top:1rem; width:100%; padding:.65rem; border:0; border-radius:5px; background:#0ea5e9; color:#fff; font-weight:600; font-size:1rem; cursor:pointer; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Sample Login</h1>
+  <p>This login page will be auto-filled by the flow: <strong>firstName</strong> -> username, <strong>phone</strong> -> password.</p>
+
+  <!-- Note: locators intentionally match mapping.csv so the Selenium flow can fill them -->
+  <form id="loginForm" action="/sample-form" method="post">
+    <!-- username <- firstName -->
+    <label for="first-name">Username</label>
+    <input id="first-name" name="username" type="text" autocomplete="username" />
+
+    <!-- password <- phone (uses css input.phone-field) -->
+    <label for="password">Password</label>
+    <input id="password" class="phone-field" name="password" type="password" autocomplete="current-password" />
+
+    <button type="submit">Login</button>
+  </form>
+</div>
+
+<script>
+  // Auto-submit after a short delay so the Selenium flow can fill fields first
+  window.addEventListener('load', function() {
+    setTimeout(function(){
+      const f = document.getElementById('loginForm');
+      if (f) f.submit();
+    }, 600);
+  });
+</script>
+</body>
+</html>

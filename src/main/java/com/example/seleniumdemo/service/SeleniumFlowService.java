@@ -2,7 +2,11 @@ package com.example.seleniumdemo.service;
 
 import com.example.seleniumdemo.model.FieldMapping;
 import com.example.seleniumdemo.model.FlowSession;
+import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.Select;
+import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.remote.RemoteWebDriver;
@@ -68,26 +72,84 @@ public class SeleniumFlowService {
 
         try {
             registry.register(session);
+            log.info("Session {} started for owner={} vnc={}", sessionId, owner, vncUrl);
             driver.get(targetUrl);
 
-            for (FieldMapping mapping : mappings) {
-                String value = data.get(mapping.csvColumn());
-                if (value == null || value.isEmpty()) {
-                    log.debug("No data for column '{}', skipping", mapping.csvColumn());
-                    continue;
-                }
-                WebElement element = driver.findElement(mapping.toBy());
-                element.clear();
-                element.sendKeys(value);
-                log.debug("Filled {} = {}", mapping.csvColumn(), value);
+            fillFields(driver, mappings, data, sessionId);
+
+            if (targetUrl.contains("/sample-form-login")) {
+                waitForSampleFormPage(driver, sessionId);
+                fillFields(driver, mappings, data, sessionId);
             }
+
             session.setStatus(FlowSession.Status.AWAITING_SUBMIT);
         } catch (Exception e) {
+            // Fatal error during driver creation/navigation: clean up and rethrow.
             session.setStatus(FlowSession.Status.ERROR);
             registry.remove(sessionId);
             throw e;
         }
         return session;
+    }
+
+    private void fillFields(RemoteWebDriver driver, List<FieldMapping> mappings, Map<String, String> data, String sessionId) {
+        for (FieldMapping mapping : mappings) {
+            String value = data.get(mapping.csvColumn());
+            if (value == null || value.isEmpty()) {
+                log.debug("No data for column '{}', skipping", mapping.csvColumn());
+                continue;
+            }
+            try {
+                WebElement element = driver.findElement(mapping.toBy());
+                String tag = element.getTagName();
+                String type = element.getAttribute("type");
+
+                if ("select".equalsIgnoreCase(tag)) {
+                    try {
+                        Select sel = new Select(element);
+                        try {
+                            sel.selectByVisibleText(value);
+                        } catch (Exception ex) {
+                            sel.selectByValue(value);
+                        }
+                    } catch (Exception ex) {
+                        log.warn("session={} could not select value='{}' for column='{}' locator={}:{} error={}",
+                            sessionId, value, mapping.csvColumn(), mapping.locatorType(), mapping.locatorValue(), ex.getMessage());
+                    }
+                } else if ("input".equalsIgnoreCase(tag) && "checkbox".equalsIgnoreCase(type)) {
+                    try {
+                        boolean should = "1".equals(value) || "true".equalsIgnoreCase(value) || "on".equalsIgnoreCase(value);
+                        if (element.isSelected() != should) {
+                            element.click();
+                        }
+                    } catch (Exception ex) {
+                        log.warn("session={} could not set checkbox for column='{}' locator={}:{} error={}",
+                            sessionId, mapping.csvColumn(), mapping.locatorType(), mapping.locatorValue(), ex.getMessage());
+                    }
+                } else {
+                    try {
+                        element.clear();
+                    } catch (Exception ignore) {
+                    }
+                    element.sendKeys(value);
+                    log.debug("Filled {} = {}", mapping.csvColumn(), value);
+                }
+            } catch (Exception e) {
+                log.warn("session={} could not fill column='{}' locator={}:{} error={}",
+                    sessionId, mapping.csvColumn(), mapping.locatorType(), mapping.locatorValue(), e.getMessage());
+            }
+        }
+    }
+
+    private void waitForSampleFormPage(RemoteWebDriver driver, String sessionId) {
+        try {
+            WebDriverWait wait = new WebDriverWait(driver, java.time.Duration.ofSeconds(10));
+            wait.until(webDriver -> webDriver.getCurrentUrl().contains("/sample-form"));
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("first-name")));
+            log.info("session={} detected /sample-form and first-name field is present", sessionId);
+        } catch (Exception e) {
+            log.warn("session={} did not fully load /sample-form after login auto-submit: {}", sessionId, e.getMessage());
+        }
     }
 
     /** Called after the human has visually verified the filled form. */
