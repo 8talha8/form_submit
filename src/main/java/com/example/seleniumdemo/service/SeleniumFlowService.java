@@ -48,19 +48,22 @@ public class SeleniumFlowService {
     private final String seleniumUrl;
     private final String selenoidUiBase;
     private final boolean enableVnc;
+    private final String defaultPassword;
 
     public SeleniumFlowService(MappingService mappingService,
                                SessionRegistry registry,
                                @Value("${app.selenium.mode:local}") String mode,
                                @Value("${app.selenium.remote-url:}") String seleniumUrl,
                                @Value("${app.selenium.selenoid-ui-base:}") String selenoidUiBase,
-                               @Value("${app.selenium.enable-vnc:false}") boolean enableVnc) {
+                               @Value("${app.selenium.enable-vnc:false}") boolean enableVnc,
+                               @Value("${app.selenium.default-password:}") String defaultPassword) {
         this.mappingService = mappingService;
         this.registry = registry;
         this.mode = mode;
         this.seleniumUrl = seleniumUrl;
         this.selenoidUiBase = selenoidUiBase;
         this.enableVnc = enableVnc;
+        this.defaultPassword = defaultPassword;
     }
 
     /** Start a flow: open the page and fill it, but do NOT submit. Returns the session. */
@@ -109,8 +112,25 @@ public class SeleniumFlowService {
     }
 
     private void fillLoginCredentials(RemoteWebDriver driver, Map<String, String> data, String sessionId) {
-        fillLoginField(driver, "StudentEmail", data.get("email"), sessionId, "email");
-        fillLoginField(driver, "StudentPassword", data.get("password"), sessionId, "password");
+        fillLoginField(driver, "StudentEmail", getDataValue(data, "Email", "email"), sessionId, "email");
+        String password = getDataValue(data, "password", "", "Password");
+        if (password == null || password.isBlank()) {
+            password = defaultPassword;
+        }
+        fillLoginField(driver, "StudentPassword", password, sessionId, "password");
+    }
+
+    private String getDataValue(Map<String, String> data, String... keys) {
+        for (String key : keys) {
+            if (key == null) {
+                continue;
+            }
+            String value = data.get(key);
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private void fillLoginField(RemoteWebDriver driver, String fieldId, String value, String sessionId, String columnName) {
@@ -131,6 +151,9 @@ public class SeleniumFlowService {
     private void fillFields(RemoteWebDriver driver, List<FieldMapping> mappings, Map<String, String> data, String sessionId) {
         for (FieldMapping mapping : mappings) {
             String value = data.get(mapping.csvColumn());
+            if ((value == null || value.isEmpty()) && "PIN CODE" .equals(mapping.csvColumn())) {
+                value = "423203";
+            }
             if (value == null || value.isEmpty()) {
                 log.debug("No data for column '{}', skipping", mapping.csvColumn());
                 continue;

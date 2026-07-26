@@ -16,6 +16,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * on the classpath. Verifies parsing, caching behaviour, and locator translation.
  */
 @SpringBootTest
+@TestPropertySource(properties = {
+    "app.mapping.data-file=classpath:data.csv",
+    "app.mapping.map-file=classpath:mapping.csv"
+})
 class MappingServiceIntegrationTest {
 
     @Autowired

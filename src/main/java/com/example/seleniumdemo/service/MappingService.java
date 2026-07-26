@@ -4,6 +4,7 @@ import com.example.seleniumdemo.model.FieldMapping;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
@@ -26,33 +27,49 @@ import java.util.Map;
 public class MappingService {
 
     private final ResourceLoader resourceLoader;
+    private final String mappingResourcePath;
+    private final String formDataResourcePath;
+    private volatile List<FieldMapping> cachedMappings;
 
-    public MappingService(ResourceLoader resourceLoader) {
+    public MappingService(ResourceLoader resourceLoader,
+                          @Value("${app.mapping.map-file:classpath:real_mapping.csv}") String mappingResourcePath,
+                          @Value("${app.mapping.data-file:classpath:FY Admission 2026-27 - F.Y.B.Voc.csv}") String formDataResourcePath) {
         this.resourceLoader = resourceLoader;
+        this.mappingResourcePath = mappingResourcePath;
+        this.formDataResourcePath = formDataResourcePath;
     }
 
     public List<FieldMapping> loadMappings() {
-        Resource resource = resourceLoader.getResource("classpath:mapping.csv");
-        List<FieldMapping> mappings = new ArrayList<>();
-        try (Reader reader = new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8);
-             CSVParser parser = CSVFormat.DEFAULT.builder()
-                 .setHeader().setSkipHeaderRecord(true).setTrim(true).build().parse(reader)) {
-            for (CSVRecord record : parser) {
-                mappings.add(new FieldMapping(
-                    record.get("csvColumn"),
-                    record.get("locatorType"),
-                    record.get("locatorValue")));
-            }
-        } catch (Exception e) {
-            throw new UncheckedIOException("Failed to read mapping.csv",
-                e instanceof java.io.IOException io ? io : new java.io.IOException(e));
+        if (cachedMappings != null) {
+            return cachedMappings;
         }
-        return mappings;
+        synchronized (this) {
+            if (cachedMappings != null) {
+                return cachedMappings;
+            }
+            Resource resource = resourceLoader.getResource(mappingResourcePath);
+            List<FieldMapping> mappings = new ArrayList<>();
+            try (Reader reader = new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8);
+                 CSVParser parser = CSVFormat.DEFAULT.builder()
+                     .setHeader().setSkipHeaderRecord(true).setTrim(true).build().parse(reader)) {
+                for (CSVRecord record : parser) {
+                    mappings.add(new FieldMapping(
+                        record.get("csvColumn"),
+                        record.get("locatorType"),
+                        record.get("locatorValue")));
+                }
+            } catch (Exception e) {
+                throw new UncheckedIOException("Failed to read mapping file " + mappingResourcePath,
+                    e instanceof java.io.IOException io ? io : new java.io.IOException(e));
+            }
+            cachedMappings = mappings;
+            return cachedMappings;
+        }
     }
 
     /** Returns each data row as a column->value map. */
     public List<Map<String, String>> loadFormData() {
-        Resource resource = resourceLoader.getResource("classpath:data.csv");
+        Resource resource = resourceLoader.getResource(formDataResourcePath);
         List<Map<String, String>> rows = new ArrayList<>();
         try (Reader reader = new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8);
              CSVParser parser = CSVFormat.DEFAULT.builder()

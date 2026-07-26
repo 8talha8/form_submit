@@ -24,6 +24,11 @@ public class UiController {
         return "dashboard";
     }
 
+    @GetMapping("/sample-form-login")
+    public String sampleFormLogin() {
+        return "sample-form-login";
+    }
+
     /**
      * Local sample form used to test the Selenium flow end-to-end without
      * needing an external website. Its element locators match mapping.csv.

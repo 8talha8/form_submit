@@ -8,7 +8,7 @@ class SeleniumFlowServiceNavigationTest {
 
     @Test
     void resolvesCampus360PersonalProfileUrl() {
-        SeleniumFlowService service = new SeleniumFlowService(null, null, "local", "", "", false);
+        SeleniumFlowService service = new SeleniumFlowService(null, null, "local", "", "", false, "T8t8t8t89*");
 
         assertThat(service.resolvePostLoginUrl("https://hmtcampus360v2.net/"))
             .isEqualTo("https://hmtcampus360v2.net/AdminPanel/Admission_new/personal_profile.php");
@@ -22,7 +22,7 @@ class SeleniumFlowServiceNavigationTest {
 
     @Test
     void extractsOriginForPermissionGranting() {
-        SeleniumFlowService service = new SeleniumFlowService(null, null, "local", "", "", false);
+        SeleniumFlowService service = new SeleniumFlowService(null, null, "local", "", "", false, "T8t8t8t89*");
 
         assertThat(service.extractOrigin("https://hmtcampus360v2.net/AdminPanel/Dashboard/dashboard.php"))
             .isEqualTo("https://hmtcampus360v2.net");

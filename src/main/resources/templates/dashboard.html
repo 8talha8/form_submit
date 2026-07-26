@@ -31,19 +31,19 @@
   <div class="panel controls">
     <label>Target login URL</label>
     <input id="targetUrl" value="https://hmtcampus360v2.net/"/>
-    <label>Data row (0-based)</label>
-    <input id="dataRow" type="number" value="0" min="0"/>
+    <label>Data row (1-based)</label>
+    <input id="dataRow" type="number" value="1" min="1"/>
     <button class="primary" onclick="startFlow()">Start &amp; Fill</button>
     <div class="status" id="status">Idle</div>
     <hr style="border-color:#334155; margin:1rem 0;"/>
-    <label>Submit locator type</label>
+    <!-- <label>Submit locator type</label>
     <input id="submitType" value="css"/>
     <label>Submit locator value</label>
     <input id="submitValue" value="button[type=submit]"/>
     <div class="row">
       <button class="success" onclick="submitFlow()">Verify &amp; Submit</button>
       <button class="danger" onclick="cancelFlow()">X Cancel</button>
-    </div>
+    </div> -->
   </div>
   <div class="panel viewer">
     <strong>Live browser:</strong> verify the filled form, then click Submit.
@@ -71,12 +71,14 @@
 
   async function startFlow() {
     setStatus('Starting & filling...');
+    const inputRow = parseInt(document.getElementById('dataRow').value, 10);
+    const zeroBasedRow = Number.isNaN(inputRow) ? 0 : Math.max(0, inputRow - 1);
     const res = await fetch('/api/flow/start', {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({
         targetUrl: document.getElementById('targetUrl').value,
-        dataRow: parseInt(document.getElementById('dataRow').value, 10)
+        dataRow: zeroBasedRow
       })
     });
     const data = await res.json();

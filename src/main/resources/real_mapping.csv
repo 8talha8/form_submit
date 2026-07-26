@@ -1,0 +1,24 @@
+csvColumn,locatorType,locatorValue
+Name of Student,id,FullName
+Devnagri,id,DevNagariFullName
+Email,id,StudentEmail
+password,id,StudentPassword
+Aadhar No,id,Aadhar
+Mothers Name,id,MotherName
+Mobile No,id,Mobile
+DOB,id,DOB
+BIRTH DISTRICT,id,BDistrict
+BIRTH TALUKA,id,BTaluka
+Birth Place,id,BirthPlace
+Blood Group,id,BloodGroup
+APAR ID/ABC ID,id,aparId
+ADDRESS,id,PAddress
+Father Mobile No,id,FatherMobileNo
+Earning ,id,EPAnnualIncome
+Last Attended Institute Name,id,LastInstitueName
+Seat No,id,SeatNo
+Exam Body,id,ExamBody
+Pasing Month,id,PassingMonthYear
+Obt. Marks,id,ObtainedMarks
+Out of Marks,id,TotalMarks
+PIN CODE,id,PIN
