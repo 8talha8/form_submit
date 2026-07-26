@@ -56,12 +56,21 @@
 </div>
 
 <script>
-  const token = localStorage.getItem('jwt');
+  function getToken() {
+    return localStorage.getItem('jwt');
+  }
+
+  const token = getToken();
   if (!token) window.location.href = '/login';
   let sessionId = null;
 
   function authHeaders() {
-    return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+    const currentToken = getToken();
+    if (!currentToken) {
+      window.location.href = '/login';
+      return { 'Content-Type': 'application/json' };
+    }
+    return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentToken };
   }
 
   function logout() {
