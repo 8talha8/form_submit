@@ -1,9 +1,12 @@
 csvColumn,locatorType,locatorValue
+religion,id,Religion
+Aadhar No,id,Aadhar
+gender,id,Gender
+disability,id,Handicap
 Name of Student,id,FullName
 Devnagri,id,DevNagariFullName
 Email,id,StudentEmail
 password,id,StudentPassword
-Aadhar No,id,Aadhar
 Mothers Name,id,MotherName
 Mobile No,id,Mobile
 DOB,id,DOB

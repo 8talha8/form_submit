@@ -151,8 +151,17 @@ public class SeleniumFlowService {
     private void fillFields(RemoteWebDriver driver, List<FieldMapping> mappings, Map<String, String> data, String sessionId) {
         for (FieldMapping mapping : mappings) {
             String value = data.get(mapping.csvColumn());
-            if ((value == null || value.isEmpty()) && "PIN CODE" .equals(mapping.csvColumn())) {
+            if ((value == null || value.isEmpty()) && "PIN CODE".equals(mapping.csvColumn())) {
                 value = "423203";
+            }
+            if ((value == null || value.isEmpty()) && "religion".equalsIgnoreCase(mapping.csvColumn())) {
+                value = "Muslim";
+            }
+            if ((value == null || value.isEmpty()) && "gender".equalsIgnoreCase(mapping.csvColumn())) {
+                value = "Male";
+            }
+            if ((value == null || value.isEmpty()) && "disability".equalsIgnoreCase(mapping.csvColumn())) {
+                value = "No";
             }
             if (value == null || value.isEmpty()) {
                 log.debug("No data for column '{}', skipping", mapping.csvColumn());
@@ -417,8 +426,8 @@ public class SeleniumFlowService {
         try {
             WebDriverWait wait = new WebDriverWait(driver, java.time.Duration.ofSeconds(25));
             wait.until(ExpectedConditions.or(
-                ExpectedConditions.presenceOfElementLocated(By.id("FirstName")),
-                ExpectedConditions.presenceOfElementLocated(By.cssSelector("input[name='FirstName']")),
+                ExpectedConditions.presenceOfElementLocated(By.id("FullName")),
+                ExpectedConditions.presenceOfElementLocated(By.id("DevNagariFullName")),
                 ExpectedConditions.presenceOfElementLocated(By.xpath("//h5[contains(., 'PERSONAL INFORMATION')]"))
             ));
             log.info("session={} loaded personal profile form", sessionId);
@@ -431,7 +440,7 @@ public class SeleniumFlowService {
         try {
             WebDriverWait wait = new WebDriverWait(driver, java.time.Duration.ofSeconds(20));
             wait.until(ExpectedConditions.and(
-                ExpectedConditions.elementToBeClickable(By.id("FirstName")),
+                ExpectedConditions.elementToBeClickable(By.id("FullName")),
                 ExpectedConditions.elementToBeClickable(By.id("Religion")),
                 ExpectedConditions.presenceOfElementLocated(By.id("Gender"))
             ));
