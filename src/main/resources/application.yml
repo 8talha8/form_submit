@@ -22,7 +22,7 @@ app:
     default-password: "mgv@123"
   mapping:
     map-file: "classpath:real_mapping.csv"
-    data-file: "classpath:FY Admission 2026-27 - F.Y.B.Voc.csv"
+    data-file: "classpath:FY Admission 2026-27 - F.Y.B.Com.csv"
   session:
     idle-timeout-seconds: 300 # quit browsers idle > 5 min
     cleanup-interval-ms: 60000 # sweep every minute

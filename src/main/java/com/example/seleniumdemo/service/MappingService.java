@@ -33,7 +33,7 @@ public class MappingService {
 
     public MappingService(ResourceLoader resourceLoader,
                           @Value("${app.mapping.map-file:classpath:real_mapping.csv}") String mappingResourcePath,
-                          @Value("${app.mapping.data-file:classpath:FY Admission 2026-27 - F.Y.B.Voc.csv}") String formDataResourcePath) {
+                          @Value("${app.mapping.data-file:classpath:FY Admission 2026-27 - F.Y.B.Com.csv}") String formDataResourcePath) {
         this.resourceLoader = resourceLoader;
         this.mappingResourcePath = mappingResourcePath;
         this.formDataResourcePath = formDataResourcePath;
